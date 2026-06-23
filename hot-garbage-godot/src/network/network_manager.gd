@@ -135,7 +135,11 @@ func rpc_advance_scene_to_peer(peer_id: int, scene_path: String) -> void:
 # --- Bid submission (client -> host) ---
 
 func submit_bid(amount: int) -> void:
-	_recv_bid.rpc_id(1, amount)
+	if is_host():
+		# Host sends to itself — call directly since rpc_id to self won't fire without call_local
+		bid_received.emit(multiplayer.get_unique_id(), amount)
+	else:
+		_recv_bid.rpc_id(1, amount)
 
 @rpc("any_peer", "reliable")
 func _recv_bid(amount: int) -> void:

@@ -84,8 +84,14 @@ func _resolve_current_auction() -> void:
 	NetworkManager.rpc_advance_scene("res://src/scenes/bid_reveal.tscn")
 	await get_tree().create_timer(0.3).timeout
 	var result: Dictionary = _engine.resolve_auction()
+	# Strip value from broadcast result — it's transmitted to all peers
+	var public_result := result.duplicate()
+	if public_result.has("artifact"):
+		var pub_artifact := public_result["artifact"].duplicate()
+		pub_artifact.erase("value")
+		public_result["artifact"] = pub_artifact
 	var chaos: Dictionary = _engine.maybe_chaos(result)
-	NetworkManager.rpc_show_bid_result(result)
+	NetworkManager.rpc_show_bid_result(public_result)
 	NetworkManager.rpc_show_chaos(chaos)
 	# Advance turn pointer
 	_current_turn_idx += 1

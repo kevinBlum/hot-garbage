@@ -48,7 +48,8 @@ func on_auctioneer_reveal(artifact: Dictionary) -> void:
 	_artifact_label.text = "%s\n%s\n\n\"%s\"" % [artifact.name, artifact.category.to_upper(), artifact.flavor]
 	_value_label.text = "TRUE VALUE: §%d" % artifact.value
 	_bid_count_label.text = "Bids received: 0 / %d" % _expected_bids
-	NetworkManager.bid_received.connect(_on_bid_count_update)
+	if not NetworkManager.bid_received.is_connected(_on_bid_count_update):
+		NetworkManager.bid_received.connect(_on_bid_count_update)
 
 func _on_bid_count_update(_peer_id: int, _amount: int) -> void:
 	_received_bids += 1

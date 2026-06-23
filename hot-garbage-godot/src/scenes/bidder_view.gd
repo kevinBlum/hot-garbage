@@ -49,7 +49,6 @@ func _build_ui() -> void:
 
 func on_start_bidding(artifact: Dictionary) -> void:
 	_artifact_label.text = "%s\n%s\n\n\"%s\"" % [artifact.name, artifact.category.to_upper(), artifact.flavor]
-	var my_name := NetworkManager.player_names.get(multiplayer.get_unique_id(), "?")
 	# Show cash if we can find it — GameServer holds this; for now show a placeholder
 	_cash_label.text = "Place your bid"
 	_bid_input.value = 0
