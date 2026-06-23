@@ -34,6 +34,21 @@ func _begin_turn() -> void:
 	var auctioneer_id: String = _order[_current_turn_idx]
 	var auctioneer_peer_id: int = _peer_id_for_player(auctioneer_id)
 
+	# Route each remote peer to the correct scene
+	for peer_id in NetworkManager.get_peer_ids():
+		var scene := "res://src/scenes/auctioneer_view.tscn" \
+			if peer_id == auctioneer_peer_id \
+			else "res://src/scenes/bidder_view.tscn"
+		NetworkManager.rpc_advance_scene_to_peer(peer_id, scene)
+
+	# Route host's own display
+	var host_scene := "res://src/scenes/auctioneer_view.tscn" \
+		if auctioneer_peer_id == 1 \
+		else "res://src/scenes/bidder_view.tscn"
+	get_tree().change_scene_to_file(host_scene)
+
+	await get_tree().create_timer(0.5).timeout
+
 	var public_artifact: Dictionary = _engine.start_auction(auctioneer_id)
 	var full_artifact: Dictionary = _engine.get_auctioneer_artifact()
 
@@ -63,6 +78,11 @@ func force_resolve() -> void:
 	_resolve_current_auction()
 
 func _resolve_current_auction() -> void:
+	if _pending_force_resolve:
+		return
+	_pending_force_resolve = true
+	NetworkManager.rpc_advance_scene("res://src/scenes/bid_reveal.tscn")
+	await get_tree().create_timer(0.3).timeout
 	var result: Dictionary = _engine.resolve_auction()
 	var chaos: Dictionary = _engine.maybe_chaos(result)
 	NetworkManager.rpc_show_bid_result(result)
@@ -74,6 +94,7 @@ func _resolve_current_auction() -> void:
 		_current_round += 1
 	# Small delay so players can read the result before moving on
 	await get_tree().create_timer(3.0).timeout
+	_pending_force_resolve = false
 	_begin_turn()
 
 func _end_game() -> void:
