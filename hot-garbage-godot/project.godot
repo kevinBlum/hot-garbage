@@ -1,0 +1,21 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; but this minimal version is valid for Godot 4.3+.
+
+config_version=5
+
+[application]
+
+config/name="Hot Garbage"
+run/main_scene="res://src/scenes/main_menu.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[autoload]
+
+NetworkManager="*res://src/network/network_manager.gd"
+GameServer="*res://src/server/game_server.gd"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
