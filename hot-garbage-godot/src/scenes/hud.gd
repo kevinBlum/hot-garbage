@@ -7,6 +7,7 @@ var _collection_vbox: VBoxContainer
 var _total_label: Label
 
 func _ready() -> void:
+    add_to_group("hud_nodes")
     # Fixed 130px left strip, full height
     anchor_left   = 0.0
     anchor_top    = 0.0

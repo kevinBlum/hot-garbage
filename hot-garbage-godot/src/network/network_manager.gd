@@ -151,6 +151,14 @@ func _recv_advance_scene(scene_path: String) -> void:
 func rpc_advance_scene_to_peer(peer_id: int, scene_path: String) -> void:
 	_recv_advance_scene.rpc_id(peer_id, scene_path)
 
+# Sync authoritative player state to a specific client
+func rpc_sync_player_state(target_peer: int, cash: int, artifacts: Array) -> void:
+	_recv_sync_player_state.rpc_id(target_peer, cash, artifacts)
+
+@rpc("authority", "reliable")
+func _recv_sync_player_state(cash: int, artifacts: Array) -> void:
+	GameServer.receive_player_state(cash, artifacts)
+
 # --- Bid submission (client -> host) ---
 
 func submit_bid(amount: int) -> void:

@@ -12,6 +12,7 @@ var _pitch_duration: int = 45
 var _bidding_open: bool = false
 var _current_auctioneer_id: String = ""
 var _current_auctioneer_peer_id: int = 0
+var _turn_gen: int = 0
 
 # Exposed for HUD — player_id (String name) -> value
 var player_cash: Dictionary = {}
@@ -40,12 +41,19 @@ func start_game(player_ids: Array, pitch_duration: int = 45) -> void:
 	for id in player_ids:
 		player_cash[id] = 1000
 		player_artifacts[id] = []
+	for id in player_ids:
+		var peer: int = _peer_id_for_player(id)
+		if peer > 0 and peer != 1:  # skip host (already has the data)
+			NetworkManager.rpc_sync_player_state(peer, player_cash[id], player_artifacts[id])
 	_begin_turn()
 
 func _begin_turn() -> void:
 	if _current_round > _engine.get_rounds():
 		_end_game()
 		return
+
+	_turn_gen += 1
+	var my_gen: int = _turn_gen
 
 	_current_auctioneer_id = _order[_current_turn_idx]
 	_current_auctioneer_peer_id = _peer_id_for_player(_current_auctioneer_id)
@@ -80,7 +88,7 @@ func _begin_turn() -> void:
 
 	# Authoritative pitch timer — opens bidding when it expires
 	await get_tree().create_timer(float(_pitch_duration)).timeout
-	if not _bidding_open:
+	if my_gen == _turn_gen and not _bidding_open:
 		_open_bidding()
 
 func _open_bidding() -> void:
@@ -108,6 +116,8 @@ func _on_bid_received(peer_id: int, amount: int) -> void:
 func force_resolve() -> void:
 	if _engine == null or not NetworkManager.is_host():
 		return
+	if not _bidding_open:
+		return
 	_resolve_current_auction()
 
 func _resolve_current_auction() -> void:
@@ -127,7 +137,13 @@ func _resolve_current_auction() -> void:
 		owned.erase("value")
 		player_artifacts[winner].append(owned)
 		player_cash[winner] = player_cash.get(winner, 0) - price
+		var winner_peer: int = _peer_id_for_player(winner)
+		if winner_peer > 0 and winner_peer != 1:
+			NetworkManager.rpc_sync_player_state(winner_peer, player_cash[winner], player_artifacts[winner])
 	player_cash[_current_auctioneer_id] = player_cash.get(_current_auctioneer_id, 0) + price
+	var seller_peer: int = _peer_id_for_player(_current_auctioneer_id)
+	if seller_peer > 0 and seller_peer != 1:
+		NetworkManager.rpc_sync_player_state(seller_peer, player_cash[_current_auctioneer_id], player_artifacts[_current_auctioneer_id])
 
 	# Strip value from broadcast result
 	var public_result := result.duplicate()
@@ -154,6 +170,14 @@ func _end_game() -> void:
 	NetworkManager.rpc_advance_scene("res://src/scenes/final_scores.tscn")
 	await get_tree().create_timer(0.5).timeout
 	NetworkManager.rpc_show_final_scores(ranking)
+
+func receive_player_state(cash: int, artifacts: Array) -> void:
+	var own_id: String = NetworkManager.player_names.get(multiplayer.get_unique_id(), "")
+	if own_id == "":
+		return
+	player_cash[own_id] = cash
+	player_artifacts[own_id] = artifacts
+	get_tree().call_group("hud_nodes", "refresh")
 
 func _peer_id_for_player(player_id: String) -> int:
 	for peer_id in NetworkManager.player_names:
