@@ -101,7 +101,7 @@ DELETE  → host-only: delete from Dynamo, emit server_disconnected to all playe
 
 ### Cold start room restore
 
-On server startup, scan Dynamo to load all room definitions into memory as empty `RoomSession` objects (no active game). Players trying to rejoin a room that was mid-game when the server died will see the room exist but no active game — they start a fresh game. Lobby shows a "Server restarted — start a new game" banner when `server_restarted` message is received.
+On server startup, scan Dynamo to load all room definitions into memory as empty `RoomSession` objects (no active game). When a player joins a room that has no active game session, the `room_joined` response includes `serverRestarted: true`. The lobby shows a "Server restarted — start a new game" banner in that case. Players who created the room fresh never see the banner.
 
 ### Reconnect handling
 
@@ -129,7 +129,7 @@ All messages are JSON over WebSocket: `{ "type": "...", ...payload }`.
 
 | Message | Payload | Who receives |
 |---|---|---|
-| `room_joined` | `roomName, isHost, config, players[]` | Joining player only |
+| `room_joined` | `roomName, isHost, config, players[], serverRestarted` | Joining player only — `serverRestarted: true` when room exists but no active game (server woke cold) |
 | `player_joined` | `playerName, players[]` | All in room |
 | `player_left` | `playerName, players[]` | All in room |
 | `error` | `code, message` | Requesting player only |
@@ -141,7 +141,7 @@ All messages are JSON over WebSocket: `{ "type": "...", ...payload }`.
 | `chaos` | `type, text, extra` | All |
 | `sync_player_state` | `cash, artifacts[]` | Targeted player only |
 | `final_scores` | `ranking[]` | All |
-| `server_restarted` | _(none)_ | All — triggers lobby banner |
+| `bid_count` | `received, total` | Auctioneer only — updates "Bids received: X/Y" display |
 
 ### Error codes
 
@@ -187,7 +187,7 @@ signal player_disconnected(player_name: String) # emitted on player_left
 signal connection_failed()
 signal server_disconnected()
 signal error_received(code: String, message: String)
-signal bid_received(player_name: String, amount: int)  # host-side only
+signal bid_count_updated(received: int, total: int)    # auctioneer only — from server bid_count message
 ```
 
 `_process()` polls `WebSocketPeer` each frame and dispatches incoming JSON to scene callbacks via `propagate_call` — same pattern as before, new transport.
@@ -224,7 +224,7 @@ Scenes continue to read `GameServer.player_cash.get(name, -1)` with no changes.
 
 ### Game scenes — minimal touch
 
-Two mechanical changes across auctioneer_view, bidder_view, and final_scores:
+Two mechanical changes across lobby, auctioneer_view, bidder_view, and final_scores:
 
 1. **"Is me" check:** `peer_id == multiplayer.get_unique_id()` → `name == NetworkManager.local_name`
 2. **Player list iteration:** `NetworkManager.player_names` is now `Array[String]` instead of `{peer_id: name}` dict — loop syntax simplifies
@@ -252,7 +252,7 @@ hot-garbage-server/
 - Route incoming messages to `RoomSession` handlers
 - Maintain `Map<roomName, RoomSession>` in memory
 - On startup: scan Dynamo, populate room map as empty sessions
-- On `server_restarted`: broadcast to all connected clients
+- Sets `serverRestarted: true` in `room_joined` when a player joins a room with no active game session
 
 ### game_session.js responsibilities
 
