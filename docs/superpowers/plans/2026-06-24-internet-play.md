@@ -529,36 +529,39 @@ Expected: `Error: Cannot find module '../room_store'`
 const { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
-const clientOpts = { region: process.env.DYNAMODB_REGION || 'us-east-1' };
-if (process.env.DYNAMODB_ENDPOINT) clientOpts.endpoint = process.env.DYNAMODB_ENDPOINT;
-const client = new DynamoDBClient(clientOpts);
-const TABLE = process.env.DYNAMODB_TABLE || 'hot-garbage-rooms';
+// Read config dynamically so test files can set env vars before requiring.
+function makeClient() {
+  const opts = { region: process.env.DYNAMODB_REGION || 'us-east-1' };
+  if (process.env.DYNAMODB_ENDPOINT) opts.endpoint = process.env.DYNAMODB_ENDPOINT;
+  return new DynamoDBClient(opts);
+}
+function table() { return process.env.DYNAMODB_TABLE || 'hot-garbage-rooms'; }
 
 async function createRoom(roomName, passwordHash, createdBy, config) {
-  await client.send(new PutItemCommand({
-    TableName: TABLE,
+  await makeClient().send(new PutItemCommand({
+    TableName: table(),
     ConditionExpression: 'attribute_not_exists(roomName)',
     Item: marshall({ roomName, passwordHash, createdBy, config, createdAt: Date.now() }),
   }));
 }
 
 async function getRoom(roomName) {
-  const res = await client.send(new GetItemCommand({
-    TableName: TABLE,
+  const res = await makeClient().send(new GetItemCommand({
+    TableName: table(),
     Key: marshall({ roomName }),
   }));
   return res.Item ? unmarshall(res.Item) : null;
 }
 
 async function deleteRoom(roomName) {
-  await client.send(new DeleteItemCommand({
-    TableName: TABLE,
+  await makeClient().send(new DeleteItemCommand({
+    TableName: table(),
     Key: marshall({ roomName }),
   }));
 }
 
 async function scanAllRooms() {
-  const res = await client.send(new ScanCommand({ TableName: TABLE }));
+  const res = await makeClient().send(new ScanCommand({ TableName: table() }));
   return (res.Items || []).map(unmarshall);
 }
 
@@ -959,7 +962,8 @@ function makeSend(roomName) {
 async function startup() {
   const allRooms = await roomStore.scanAllRooms();
   for (const r of allRooms) {
-    rooms.set(r.roomName, { config: r.config, passwordHash: r.passwordHash, createdBy: r.createdBy, players: new Map(), session: null });
+    // wasRestored: true flags rooms loaded on cold start so the lobby can show a banner.
+    rooms.set(r.roomName, { config: r.config, passwordHash: r.passwordHash, createdBy: r.createdBy, players: new Map(), session: null, wasRestored: true });
   }
   console.log(`Restored ${allRooms.length} room(s) from DynamoDB`);
 }
@@ -1026,7 +1030,7 @@ async function handleJoinRoom(ws, msg, ctx) {
 
   const players = [...room.players.keys()];
   const isHost = playerName === room.createdBy;
-  const serverRestarted = !!(room.session === null && room.players.size > 1);
+  const serverRestarted = !!room.wasRestored;
 
   send(ws, { type: 'room_joined', roomName, isHost, config: room.config, players, serverRestarted });
   broadcastRoom(roomName, { type: 'player_joined', playerName, players }, playerName);
@@ -1040,6 +1044,7 @@ function handleStartGame(ws, ctx) {
   if (room.players.size < 2) return send(ws, { type: 'error', code: 'NOT_ENOUGH_PLAYERS', message: 'Need at least 2 players.' });
 
   const playerNames = [...room.players.keys()];
+  room.wasRestored = false;
   room.session = new GameSession(playerNames, room.config, makeSend(roomName));
   room.session.start();
 }
