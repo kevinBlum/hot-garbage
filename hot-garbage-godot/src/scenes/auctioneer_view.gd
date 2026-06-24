@@ -136,11 +136,6 @@ func _build_ui() -> void:
 	right_col.add_child(player_card)
 
 	var player_inner := VBoxContainer.new()
-	player_inner.set_anchors_preset(Control.PRESET_FULL_RECT)
-	player_inner.offset_left   =  _UITheme.PAD
-	player_inner.offset_top    =  _UITheme.PAD
-	player_inner.offset_right  = -_UITheme.PAD
-	player_inner.offset_bottom = -_UITheme.PAD
 	player_inner.add_theme_constant_override("separation", _UITheme.GAP)
 	player_card.add_child(player_inner)
 
