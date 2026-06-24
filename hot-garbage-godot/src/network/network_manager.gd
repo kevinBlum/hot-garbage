@@ -34,6 +34,10 @@ func join(ip: String, player_name: String) -> void:
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
+func disconnect_from_game() -> void:
+	multiplayer.multiplayer_peer = null
+	player_names.clear()
+
 func is_host() -> bool:
 	return multiplayer.is_server()
 

@@ -93,6 +93,12 @@ func _build_ui() -> void:
 	_UITheme.style_ghost_button(join_btn)
 	right.add_child(join_btn)
 
+	var settings_btn := Button.new()
+	settings_btn.text = "SETTINGS"
+	settings_btn.pressed.connect(_on_settings_pressed)
+	_UITheme.style_ghost_button(settings_btn)
+	right.add_child(settings_btn)
+
 	_status_label = Label.new()
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_UITheme.style_label(_status_label, _UITheme.FS_BODY, _UITheme.DIM)
@@ -124,6 +130,23 @@ func _on_registered(_peer_id: int, _name: String) -> void:
 	if not NetworkManager.is_host():
 		NetworkManager.player_registered.disconnect(_on_registered)
 		get_tree().change_scene_to_file("res://src/scenes/lobby.tscn")
+
+func _on_settings_pressed() -> void:
+	AudioManager.play_ui()
+	get_tree().change_scene_to_file("res://src/scenes/settings.tscn")
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_show_quit_dialog()
+
+func _show_quit_dialog() -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Quit"
+	dlg.dialog_text = "Quit Hot Garbage?"
+	dlg.confirmed.connect(func(): get_tree().quit())
+	dlg.canceled.connect(func(): dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()
 
 func _on_connection_failed() -> void:
 	_status_label.text = "Connection failed."

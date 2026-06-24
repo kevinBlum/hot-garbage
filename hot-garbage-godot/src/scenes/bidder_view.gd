@@ -231,3 +231,18 @@ func _update_countdown_display() -> void:
 	var mins: int = secs / 60
 	var s: int = secs % 60
 	_countdown_label.text = "%d:%02d" % [mins, s]
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_show_leave_dialog()
+
+func _show_leave_dialog() -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Leave"
+	dlg.dialog_text = "Leave game and return to menu?"
+	dlg.confirmed.connect(func():
+		NetworkManager.disconnect_from_game()
+		get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn"))
+	dlg.canceled.connect(func(): dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()

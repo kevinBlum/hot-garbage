@@ -84,3 +84,18 @@ func on_show_final_scores(ranking: Array) -> void:
 			]
 			_UITheme.style_label(line, _UITheme.FS_LABEL, _UITheme.cat_color(cat) if completed else _UITheme.DIM)
 			_score_vbox.add_child(line)
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_show_leave_dialog()
+
+func _show_leave_dialog() -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Leave"
+	dlg.dialog_text = "Leave game and return to menu?"
+	dlg.confirmed.connect(func():
+		NetworkManager.disconnect_from_game()
+		get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn"))
+	dlg.canceled.connect(func(): dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()
