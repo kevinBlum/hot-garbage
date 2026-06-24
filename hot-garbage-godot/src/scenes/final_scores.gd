@@ -45,7 +45,7 @@ func on_show_final_scores(ranking: Array) -> void:
 
 		for cat in p.breakdown:
 			var b: Dictionary = p.breakdown[cat]
-			var set_str := "  SET x%.1f" % b.multiplier if b.completed else ""
+			var set_str: String = ("  SET x%.1f" % b.multiplier) if b.completed else ""
 			var line := Label.new()
 			line.text = "    %s: %d items, raw §%d → §%d%s" % [cat, b.count, b.raw, b.scored, set_str]
 			player_vbox.add_child(line)

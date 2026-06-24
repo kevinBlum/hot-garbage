@@ -27,7 +27,7 @@ func on_show_bid_result(result: Dictionary) -> void:
 	if result.winner == "BANK":
 		_result_label.text = "No takers. Bank paid §%d." % result.price
 	else:
-		var winner_name := NetworkManager.player_names.get(
+		var winner_name: String = NetworkManager.player_names.get(
 			_peer_id_for_name(result.winner), result.winner)
 		_result_label.text = "%s won for §%d!" % [winner_name, result.price]
 
