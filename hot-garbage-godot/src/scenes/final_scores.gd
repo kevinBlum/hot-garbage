@@ -1,62 +1,84 @@
 extends Control
 
+const _UITheme = preload("res://src/scenes/ui_theme.gd")
+
+var _hud: Control
+var _score_vbox: VBoxContainer
+
 func _ready() -> void:
 	_build_ui()
 
 func _build_ui() -> void:
+	_UITheme.add_bg(self)
+
+	const HUDScript = preload("res://src/scenes/hud.gd")
+	_hud = HUDScript.new()
+	add_child(_hud)
+
+	var main := Control.new()
+	main.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main.offset_left = _UITheme.HUD_WIDTH
+	add_child(main)
+
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(scroll)
+	main.add_child(scroll)
 
-	var vbox := VBoxContainer.new()
-	vbox.name = "ScoreList"
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(vbox)
+	var outer := VBoxContainer.new()
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.add_theme_constant_override("separation", _UITheme.GAP * 2)
+	outer.offset_left   = _UITheme.PAD * 2
+	outer.offset_top    = _UITheme.PAD * 2
+	outer.offset_right  = -_UITheme.PAD * 2
+	outer.offset_bottom = -_UITheme.PAD * 2
+	scroll.add_child(outer)
 
 	var title := Label.new()
 	title.text = "GRAND REVEAL"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
+	_UITheme.style_label(title, _UITheme.FS_ARTIFACT, _UITheme.GOLD)
+	outer.add_child(title)
 
 	var waiting := Label.new()
 	waiting.name = "WaitingLabel"
-	waiting.text = "Waiting for final scores..."
+	waiting.text = "Calculating scores..."
 	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(waiting)
+	_UITheme.style_label(waiting, _UITheme.FS_BODY, _UITheme.DIM)
+	outer.add_child(waiting)
+
+	_score_vbox = VBoxContainer.new()
+	_score_vbox.add_theme_constant_override("separation", _UITheme.GAP)
+	outer.add_child(_score_vbox)
 
 func on_show_final_scores(ranking: Array) -> void:
-	var vbox: VBoxContainer = $ScrollContainer/ScoreList if has_node("ScrollContainer/ScoreList") else _find_vbox()
 	# Remove waiting label
-	for child in vbox.get_children():
-		if child.name == "WaitingLabel":
-			child.queue_free()
+	var waiting: Node = get_node_or_null("*/WaitingLabel")
+	if waiting:
+		waiting.queue_free()
 
-	var medals := ["🏆", "2.", "3.", "4.", "5.", "6.", "7.", "8."]
+	var medals: Array = ["#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"]
+
 	for i in range(ranking.size()):
 		var p: Dictionary = ranking[i]
-		var medal: String = medals[i] if i < medals.size() else "%d." % (i + 1)
-
-		var player_vbox := VBoxContainer.new()
-		vbox.add_child(player_vbox)
-
-		var header := Label.new()
-		header.text = "%s %s — %d pts  (cash §%d)" % [medal, p.id, p.total, p.cash]
-		player_vbox.add_child(header)
-
-		for cat in p.breakdown:
-			var b: Dictionary = p.breakdown[cat]
-			var set_str: String = ("  SET x%.1f" % b.multiplier) if b.completed else ""
-			var line := Label.new()
-			line.text = "    %s: %d items, raw §%d → §%d%s" % [cat, b.count, b.raw, b.scored, set_str]
-			player_vbox.add_child(line)
+		var medal: String = medals[i] if i < medals.size() else "#%d" % (i + 1)
 
 		var sep := HSeparator.new()
-		vbox.add_child(sep)
+		_score_vbox.add_child(sep)
 
-func _find_vbox() -> VBoxContainer:
-	for child in get_children():
-		if child is ScrollContainer:
-			for grandchild in child.get_children():
-				if grandchild is VBoxContainer:
-					return grandchild
-	return VBoxContainer.new()
+		var header := Label.new()
+		header.text = "%s  %s — %d pts  (§%d cash)" % [medal, p.id, p.total, p.cash]
+		_UITheme.style_label(header, _UITheme.FS_BODY, _UITheme.TEXT)
+		header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_score_vbox.add_child(header)
+
+		var breakdown: Dictionary = p.get("breakdown", {})
+		for cat in breakdown:
+			var b: Dictionary = breakdown[cat]
+			var completed: bool = b.get("completed", false)
+			var set_str: String = ("  SET x%.1f" % b.get("multiplier", 1.0)) if completed else ""
+			var line := Label.new()
+			line.text = "  %s: %d items, §%d raw → §%d%s" % [
+				cat.capitalize(), b.get("count", 0), b.get("raw", 0), b.get("scored", 0), set_str
+			]
+			_UITheme.style_label(line, _UITheme.FS_LABEL, _UITheme.cat_color(cat) if completed else _UITheme.DIM)
+			_score_vbox.add_child(line)
