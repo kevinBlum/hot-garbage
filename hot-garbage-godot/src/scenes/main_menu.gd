@@ -16,7 +16,7 @@ func _build_ui() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_CENTER)
-	vbox.custom_minimum_size = Vector2(400, 320)
+	vbox.custom_minimum_size = Vector2(640, 480)
 	vbox.add_theme_constant_override("separation", _UITheme.GAP * 2)
 	add_child(vbox)
 
