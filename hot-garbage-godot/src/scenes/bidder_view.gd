@@ -79,7 +79,7 @@ func _build_ui() -> void:
 	# Bid area (shown dimmed during pitch, enabled when bidding opens)
 	_bid_area = Control.new()
 	_bid_area.custom_minimum_size = Vector2(0, 60)
-	_bid_area.modulate.a = 0.35
+	_bid_area.modulate.a = 0.4
 	vbox.add_child(_bid_area)
 
 	var bid_row := HBoxContainer.new()
@@ -114,9 +114,6 @@ func _build_ui() -> void:
 	vbox.add_child(_status_label)
 
 func on_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
-	var auctioneer_name: String = ""
-	# The auctioneer is tracked by GameServer; infer from player order via NetworkManager
-	# Fallback: show generic header
 	_header_label.text = "PITCH PHASE"
 	_name_label.text = artifact.get("name", "")
 	var cat: String = artifact.get("category", "")
@@ -130,7 +127,7 @@ func on_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
 	_update_countdown_display()
 
 	# Reset bid area to locked state
-	_bid_area.modulate.a = 0.35
+	_bid_area.modulate.a = 0.4
 	_bid_input.editable = false
 	_bid_input.value = 0
 	_submit_btn.disabled = true
