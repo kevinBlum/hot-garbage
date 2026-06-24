@@ -47,6 +47,7 @@ func _build_ui() -> void:
 	vbox.add_child(_chaos_label)
 
 func on_show_bid_result(result: Dictionary) -> void:
+	AudioManager.play_resolve()
 	if result.winner == "BANK":
 		_result_label.text = "No takers.\nBank paid §%d." % result.price
 	else:

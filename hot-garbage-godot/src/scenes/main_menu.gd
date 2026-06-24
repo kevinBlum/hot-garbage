@@ -99,6 +99,7 @@ func _build_ui() -> void:
 	right.add_child(_status_label)
 
 func _on_host_pressed() -> void:
+	AudioManager.play_ui()
 	var name := _name_field.text.strip_edges()
 	if name.is_empty():
 		_status_label.text = "Enter your name first."
@@ -108,6 +109,7 @@ func _on_host_pressed() -> void:
 	get_tree().change_scene_to_file("res://src/scenes/lobby.tscn")
 
 func _on_join_pressed() -> void:
+	AudioManager.play_ui()
 	var name := _name_field.text.strip_edges()
 	var ip := _ip_field.text.strip_edges()
 	if name.is_empty():

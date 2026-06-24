@@ -81,6 +81,7 @@ func _on_player_changed(_a = null, _b = null) -> void:
 	_refresh_player_list()
 
 func _on_start_pressed() -> void:
+	AudioManager.play_ui()
 	var player_ids: Array = []
 	for peer_id in NetworkManager.player_names:
 		player_ids.append(NetworkManager.player_names[peer_id])

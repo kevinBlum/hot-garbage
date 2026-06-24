@@ -202,6 +202,7 @@ func on_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
 	_status_label.text = ""
 
 func on_open_bidding() -> void:
+	AudioManager.play_open()
 	_counting = false
 	_phase_label.text = "BIDDING IS OPEN"
 	_countdown_label.text = ""
@@ -210,6 +211,7 @@ func on_open_bidding() -> void:
 	_submit_btn.disabled = false
 
 func _on_submit_pressed() -> void:
+	AudioManager.play_bid()
 	_submit_btn.disabled = true
 	_bid_input.editable = false
 	_status_label.text = "Bid submitted. Waiting for others..."

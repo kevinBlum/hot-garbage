@@ -121,7 +121,9 @@ func _build_ui() -> void:
 	if NetworkManager.is_host():
 		_force_btn = Button.new()
 		_force_btn.text = "FORCE RESOLVE"
-		_force_btn.pressed.connect(func(): GameServer.force_resolve())
+		_force_btn.pressed.connect(func():
+			AudioManager.play_ui()
+			GameServer.force_resolve())
 		_UITheme.style_ghost_button(_force_btn)
 		_force_btn.visible = false
 		btn_row.add_child(_force_btn)
@@ -195,6 +197,7 @@ func on_auctioneer_reveal(artifact: Dictionary, pitch_duration: int) -> void:
 		NetworkManager.bid_received.connect(_on_bid_count_update)
 
 func on_open_bidding() -> void:
+	AudioManager.play_open()
 	_counting = false
 	_countdown_label.text = "BIDDING OPEN"
 	_open_early_btn.visible = false
@@ -208,6 +211,7 @@ func _on_bid_count_update(_peer_id: int, _amount: int) -> void:
 	_bid_status_label.text = "Bids received: %d / %d" % [_received_bids, _expected_bids]
 
 func _on_open_early_pressed() -> void:
+	AudioManager.play_ui()
 	_open_early_btn.disabled = true
 	NetworkManager.send_open_early()
 
