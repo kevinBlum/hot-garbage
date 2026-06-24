@@ -4,6 +4,7 @@ const _UITheme = preload("res://src/scenes/ui_theme.gd")
 
 var _hud: Control
 var _score_vbox: VBoxContainer
+var _waiting_label: Label
 
 func _ready() -> void:
 	_build_ui()
@@ -39,12 +40,12 @@ func _build_ui() -> void:
 	_UITheme.style_label(title, _UITheme.FS_ARTIFACT, _UITheme.GOLD)
 	outer.add_child(title)
 
-	var waiting := Label.new()
-	waiting.name = "WaitingLabel"
-	waiting.text = "Calculating scores..."
-	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_UITheme.style_label(waiting, _UITheme.FS_BODY, _UITheme.DIM)
-	outer.add_child(waiting)
+	_waiting_label = Label.new()
+	_waiting_label.name = "WaitingLabel"
+	_waiting_label.text = "Calculating scores..."
+	_waiting_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_UITheme.style_label(_waiting_label, _UITheme.FS_BODY, _UITheme.DIM)
+	outer.add_child(_waiting_label)
 
 	_score_vbox = VBoxContainer.new()
 	_score_vbox.add_theme_constant_override("separation", _UITheme.GAP)
@@ -52,9 +53,9 @@ func _build_ui() -> void:
 
 func on_show_final_scores(ranking: Array) -> void:
 	# Remove waiting label
-	var waiting: Node = get_node_or_null("*/WaitingLabel")
-	if waiting:
-		waiting.queue_free()
+	if _waiting_label != null:
+		_waiting_label.queue_free()
+		_waiting_label = null
 
 	var medals: Array = ["#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"]
 

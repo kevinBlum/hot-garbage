@@ -1,0 +1,102 @@
+<h2>HUD Layout</h2>
+<p class="subtitle">Where does your cash balance and collection live during the game?</p>
+
+<div class="cards">
+
+  <!-- Option A: Left Sidebar -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;display:flex;min-height:220px;border:1px solid #333;font-family:'Courier New',monospace;font-size:11px;">
+        <!-- Sidebar -->
+        <div style="width:130px;background:#0d0d0d;border-right:1px solid #222;padding:10px;flex-shrink:0;">
+          <div style="color:#555;letter-spacing:2px;font-size:9px;margin-bottom:8px;">YOU</div>
+          <div style="color:#C9A227;font-size:16px;font-weight:bold;margin-bottom:12px;">§640</div>
+          <div style="color:#555;letter-spacing:2px;font-size:9px;margin-bottom:6px;">COLLECTION</div>
+          <div style="color:#7B6CD9;margin-bottom:3px;">■ Curios ×2</div>
+          <div style="color:#C9A227;margin-bottom:3px;">■ Antiquity ×1</div>
+          <div style="color:#8A8A8A;margin-bottom:3px;">■ Junk ×1</div>
+          <div style="color:#333;margin-top:10px;font-size:9px;">3 artifacts</div>
+        </div>
+        <!-- Main area -->
+        <div style="flex:1;padding:14px;">
+          <div style="color:#555;font-size:9px;letter-spacing:2px;margin-bottom:10px;">ROUND 2 / 4 · BIDDING</div>
+          <div style="color:#fff;font-size:14px;font-weight:bold;margin-bottom:4px;">Mummified Cat Named 'Greg'</div>
+          <div style="margin-bottom:8px;"><span style="border:1px solid #7B6CD9;color:#7B6CD9;font-size:9px;padding:1px 6px;letter-spacing:1px;">CURIO</span></div>
+          <div style="color:#555;font-size:11px;font-style:italic;margin-bottom:12px;">"The label is modern. Greg is not."</div>
+          <div style="background:#1a1a1a;border:1px solid #222;padding:8px;display:flex;align-items:center;gap:8px;">
+            <div style="color:#aaa;font-size:11px;">Your bid: §</div>
+            <div style="border:1px solid #444;color:#fff;padding:3px 8px;font-size:13px;background:#0d0d0d;">150</div>
+            <div style="background:#C9A227;color:#000;padding:4px 10px;font-size:10px;font-weight:bold;cursor:pointer;">SUBMIT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Left Sidebar (Recommended)</h3>
+      <p>Always visible. Category counts with color coding. Cash prominent at top. Never intrudes on the main action.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Bottom Bar -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;display:flex;flex-direction:column;min-height:220px;border:1px solid #333;font-family:'Courier New',monospace;font-size:11px;">
+        <!-- Main area -->
+        <div style="flex:1;padding:14px;">
+          <div style="color:#555;font-size:9px;letter-spacing:2px;margin-bottom:10px;">ROUND 2 / 4 · BIDDING</div>
+          <div style="color:#fff;font-size:15px;font-weight:bold;margin-bottom:4px;">Mummified Cat Named 'Greg'</div>
+          <div style="margin-bottom:8px;"><span style="border:1px solid #7B6CD9;color:#7B6CD9;font-size:9px;padding:1px 6px;letter-spacing:1px;">CURIO</span></div>
+          <div style="color:#555;font-size:11px;font-style:italic;margin-bottom:12px;">"The label is modern. Greg is not."</div>
+          <div style="background:#1a1a1a;border:1px solid #222;padding:8px;display:flex;align-items:center;gap:8px;">
+            <div style="color:#aaa;font-size:11px;">Your bid: §</div>
+            <div style="border:1px solid #444;color:#fff;padding:3px 8px;font-size:13px;background:#0d0d0d;">150</div>
+            <div style="background:#C9A227;color:#000;padding:4px 10px;font-size:10px;font-weight:bold;cursor:pointer;">SUBMIT</div>
+          </div>
+        </div>
+        <!-- Bottom bar -->
+        <div style="background:#0d0d0d;border-top:1px solid #222;padding:8px 14px;display:flex;align-items:center;gap:16px;">
+          <div><span style="color:#555;font-size:9px;letter-spacing:1px;">CASH </span><span style="color:#C9A227;font-weight:bold;">§640</span></div>
+          <div style="color:#333;">|</div>
+          <div style="color:#7B6CD9;">■ ×2</div>
+          <div style="color:#C9A227;">■ ×1</div>
+          <div style="color:#8A8A8A;">■ ×1</div>
+          <div style="color:#555;font-size:9px;margin-left:4px;">3 artifacts</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Bottom Bar</h3>
+      <p>Compact strip at the bottom. Max vertical space for the main action. Collection shown as colored dots with counts.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Expandable Panel -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;min-height:220px;border:1px solid #333;font-family:'Courier New',monospace;font-size:11px;position:relative;">
+        <!-- Main area -->
+        <div style="padding:14px;">
+          <div style="color:#555;font-size:9px;letter-spacing:2px;margin-bottom:10px;">ROUND 2 / 4 · BIDDING</div>
+          <div style="color:#fff;font-size:15px;font-weight:bold;margin-bottom:4px;">Mummified Cat Named 'Greg'</div>
+          <div style="margin-bottom:8px;"><span style="border:1px solid #7B6CD9;color:#7B6CD9;font-size:9px;padding:1px 6px;letter-spacing:1px;">CURIO</span></div>
+          <div style="color:#555;font-size:11px;font-style:italic;margin-bottom:12px;">"The label is modern. Greg is not."</div>
+          <div style="background:#1a1a1a;border:1px solid #222;padding:8px;display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="color:#aaa;font-size:11px;">Your bid: §</div>
+            <div style="border:1px solid #444;color:#fff;padding:3px 8px;font-size:13px;background:#0d0d0d;">150</div>
+            <div style="background:#C9A227;color:#000;padding:4px 10px;font-size:10px;font-weight:bold;cursor:pointer;">SUBMIT</div>
+          </div>
+        </div>
+        <!-- Collapsed panel tab -->
+        <div style="position:absolute;top:10px;right:0;background:#0d0d0d;border:1px solid #222;border-right:none;padding:6px 10px;cursor:pointer;">
+          <div style="color:#C9A227;font-size:11px;font-weight:bold;">§640</div>
+          <div style="color:#555;font-size:9px;text-align:center;margin-top:2px;">▶ MY STUFF</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Slide-out Panel</h3>
+      <p>Compact tab on the edge showing just your cash. Click to expand your full collection. Max screen space by default.</p>
+    </div>
+  </div>
+
+</div>

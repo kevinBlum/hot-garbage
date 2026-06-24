@@ -1,0 +1,12 @@
+{
+  "name": "hot-garbage",
+  "version": "0.1.0",
+  "description": "A friend-slop party game of bluffing, bidding, and bad provenance.",
+  "main": "server/engine.js",
+  "scripts": {
+    "sim": "node server/simulate.js",
+    "sim:6": "node server/simulate.js --players 6 --chaos 0.4"
+  },
+  "license": "MIT",
+  "private": true
+}

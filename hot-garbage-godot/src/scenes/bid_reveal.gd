@@ -54,13 +54,12 @@ func on_show_bid_result(result: Dictionary) -> void:
 			_peer_id_for_name(result.winner), result.winner)
 		_result_label.text = "%s\nwon for §%d!" % [winner_name, result.price]
 	# Refresh HUD now that player state has been updated by GameServer
-	if _hud != null and _hud.has_method("refresh"):
-		_hud.refresh()
+	_hud.refresh()
 
 func on_show_chaos(chaos: Dictionary) -> void:
 	if chaos.is_empty():
 		return
-	if chaos.type == "appraiser":
+	if chaos.get("type", "") == "appraiser":
 		_chaos_label.text = "APPRAISER: %s" % chaos.text
 	else:
 		_chaos_label.text = "EVENT: %s" % chaos.text
