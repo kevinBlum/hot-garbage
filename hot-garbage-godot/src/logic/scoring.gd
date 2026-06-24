@@ -1,4 +1,5 @@
 class_name Scoring
+extends RefCounted
 
 const SET_THRESHOLD := 3
 

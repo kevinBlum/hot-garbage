@@ -1,6 +1,7 @@
 extends Node
 
-var _engine: GameEngine = null
+const _GameEngineClass = preload("res://src/logic/game_engine.gd")
+var _engine = null
 var _artifact_data: Dictionary = {}
 var _current_round: int = 0
 var _current_turn_idx: int = 0  # index into _order for this round
@@ -17,7 +18,7 @@ func _ready() -> void:
 func start_game(player_ids: Array) -> void:
 	if not NetworkManager.is_host():
 		return
-	_engine = GameEngine.new(
+	_engine = _GameEngineClass.new(
 		{"seed": randi(), "player_ids": player_ids},
 		_artifact_data
 	)
@@ -87,7 +88,7 @@ func _resolve_current_auction() -> void:
 	# Strip value from broadcast result — it's transmitted to all peers
 	var public_result := result.duplicate()
 	if public_result.has("artifact"):
-		var pub_artifact := public_result["artifact"].duplicate()
+		var pub_artifact: Dictionary = (public_result["artifact"] as Dictionary).duplicate()
 		pub_artifact.erase("value")
 		public_result["artifact"] = pub_artifact
 	var chaos: Dictionary = _engine.maybe_chaos(result)

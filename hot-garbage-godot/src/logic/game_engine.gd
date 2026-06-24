@@ -1,4 +1,5 @@
 class_name GameEngine
+extends RefCounted
 
 const EVENTS := [
 	{"id": "market_crash",      "text": "MARKET CRASH — Forgeries score double this game."},
