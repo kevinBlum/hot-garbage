@@ -63,8 +63,8 @@ func _on_join_pressed() -> void:
 	NetworkManager.join(ip, name)
 
 func _on_registered(_peer_id: int, _name: String) -> void:
-	# Only the local client fires this on a successful join
 	if not NetworkManager.is_host():
+		NetworkManager.player_registered.disconnect(_on_registered)
 		get_tree().change_scene_to_file("res://src/scenes/lobby.tscn")
 
 func _on_connection_failed() -> void:
