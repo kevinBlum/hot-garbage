@@ -1,6 +1,8 @@
 class_name GameEngine
 extends RefCounted
 
+const _Scoring = preload("res://src/logic/scoring.gd")
+
 const EVENTS := [
 	{"id": "market_crash",      "text": "MARKET CRASH — Forgeries score double this game."},
 	{"id": "museum_heist",      "text": "MUSEUM HEIST — a random player loses their priciest artifact to the Bank."},
@@ -139,7 +141,7 @@ func get_final_scores() -> Array:
 	var cats: Dictionary = _categories.duplicate(true)
 	if _flags.forgeriesDouble and cats.has("forgeries"):
 		cats.forgeries.setBonus *= 2.0
-	return Scoring.rank_players(_players, cats)
+	return _Scoring.rank_players(_players, cats)
 
 func get_rounds() -> int:
 	return _rounds
