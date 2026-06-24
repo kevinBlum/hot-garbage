@@ -5,6 +5,7 @@ const _UITheme = preload("res://src/scenes/ui_theme.gd")
 var _name_field: LineEdit
 var _ip_field: LineEdit
 var _status_label: Label
+var _dialog_open: bool = false
 
 func _ready() -> void:
 	_build_ui()
@@ -112,6 +113,8 @@ func _on_host_pressed() -> void:
 		return
 	_status_label.text = "Hosting..."
 	NetworkManager.host(name)
+	if NetworkManager.connection_failed.is_connected(_on_connection_failed):
+		NetworkManager.connection_failed.disconnect(_on_connection_failed)
 	get_tree().change_scene_to_file("res://src/scenes/lobby.tscn")
 
 func _on_join_pressed() -> void:
@@ -124,6 +127,8 @@ func _on_join_pressed() -> void:
 	if ip.is_empty():
 		ip = "127.0.0.1"
 	_status_label.text = "Connecting to %s..." % ip
+	if NetworkManager.connection_failed.is_connected(_on_connection_failed):
+		NetworkManager.connection_failed.disconnect(_on_connection_failed)
 	NetworkManager.join(ip, name)
 
 func _on_registered(_peer_id: int, _name: String) -> void:
@@ -140,11 +145,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_show_quit_dialog()
 
 func _show_quit_dialog() -> void:
+	if _dialog_open:
+		return
+	_dialog_open = true
 	var dlg := ConfirmationDialog.new()
 	dlg.title = "Quit"
 	dlg.dialog_text = "Quit Hot Garbage?"
 	dlg.confirmed.connect(func(): get_tree().quit())
-	dlg.canceled.connect(func(): dlg.queue_free())
+	dlg.canceled.connect(func():
+		_dialog_open = false
+		dlg.queue_free())
 	add_child(dlg)
 	dlg.popup_centered()
 

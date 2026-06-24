@@ -17,6 +17,7 @@ var _bid_area: Control
 var _pitch_seconds_left: float = 0.0
 var _counting: bool = false
 var _player_vbox: VBoxContainer
+var _dialog_open: bool = false
 
 func _ready() -> void:
 	_build_ui()
@@ -237,12 +238,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_show_leave_dialog()
 
 func _show_leave_dialog() -> void:
+	if _dialog_open:
+		return
+	_dialog_open = true
 	var dlg := ConfirmationDialog.new()
 	dlg.title = "Leave"
 	dlg.dialog_text = "Leave game and return to menu?"
 	dlg.confirmed.connect(func():
 		NetworkManager.disconnect_from_game()
 		get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn"))
-	dlg.canceled.connect(func(): dlg.queue_free())
+	dlg.canceled.connect(func():
+		_dialog_open = false
+		dlg.queue_free())
 	add_child(dlg)
 	dlg.popup_centered()
