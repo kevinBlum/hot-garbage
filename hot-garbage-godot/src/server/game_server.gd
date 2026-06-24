@@ -106,9 +106,9 @@ func _resolve_current_auction() -> void:
 
 func _end_game() -> void:
 	var ranking: Array = _engine.get_final_scores()
-	NetworkManager.rpc_show_final_scores(ranking)
-	await get_tree().create_timer(1.0).timeout
 	NetworkManager.rpc_advance_scene("res://src/scenes/final_scores.tscn")
+	await get_tree().create_timer(0.5).timeout
+	NetworkManager.rpc_show_final_scores(ranking)
 
 # --- Peer ↔ Player ID mapping ---
 # player_ids in the engine are strings matching NetworkManager.player_names values.
