@@ -9,10 +9,10 @@ signal bid_received(peer_id: int, amount: int)
 const PORT := 7777
 const MAX_PEERS := 8
 
-var player_names: Dictionary = {}  # int -> String
+var player_names: Dictionary = {}
 var _local_name: String = ""
 
-# --- Transport (Steam GodotSteam replaces these three methods only) ---
+# --- Transport ---
 
 func host(player_name: String) -> void:
 	_local_name = player_name
@@ -43,7 +43,7 @@ func get_peer_ids() -> Array:
 # --- Peer lifecycle ---
 
 func _on_peer_connected(_peer_id: int) -> void:
-	pass  # client registers themselves via RPC
+	pass
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	player_names.erase(peer_id)
@@ -66,9 +66,7 @@ func _register_self(player_name: String) -> void:
 		return
 	var sender_id: int = multiplayer.get_remote_sender_id()
 	player_names[sender_id] = player_name
-	# Tell everyone (including sender) about the new player
 	_sync_player_joined.rpc(sender_id, player_name)
-	# Send existing players to new client
 	for id in player_names:
 		if id != sender_id:
 			_sync_player_joined.rpc_id(sender_id, id, player_names[id])
@@ -78,23 +76,45 @@ func _sync_player_joined(peer_id: int, player_name: String) -> void:
 	player_names[peer_id] = player_name
 	player_registered.emit(peer_id, player_name)
 
-# --- Game RPCs (called by GameServer on host; received and acted on by all clients) ---
+# --- Auction RPCs ---
 
-# Reveal full artifact to one auctioneer peer only
-func rpc_reveal_to_auctioneer(auctioneer_peer_id: int, artifact: Dictionary) -> void:
-	_recv_reveal_to_auctioneer.rpc_id(auctioneer_peer_id, artifact)
+# Send full artifact (with value) + pitch duration to auctioneer only
+func rpc_reveal_to_auctioneer(auctioneer_peer_id: int, artifact: Dictionary, pitch_duration: int) -> void:
+	_recv_reveal_to_auctioneer.rpc_id(auctioneer_peer_id, artifact, pitch_duration)
 
 @rpc("authority", "reliable")
-func _recv_reveal_to_auctioneer(artifact: Dictionary) -> void:
-	get_tree().get_root().propagate_call("on_auctioneer_reveal", [artifact], true)
+func _recv_reveal_to_auctioneer(artifact: Dictionary, pitch_duration: int) -> void:
+	get_tree().get_root().propagate_call("on_auctioneer_reveal", [artifact, pitch_duration], true)
 
-# Broadcast public artifact to all bidders
-func rpc_start_bidding(artifact: Dictionary) -> void:
-	_recv_start_bidding.rpc(artifact)
+# Broadcast public artifact (no value) + pitch duration to all peers (bidders)
+func rpc_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
+	_recv_start_pitch.rpc(artifact, pitch_duration)
 
 @rpc("authority", "reliable", "call_local")
-func _recv_start_bidding(artifact: Dictionary) -> void:
-	get_tree().get_root().propagate_call("on_start_bidding", [artifact], true)
+func _recv_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
+	get_tree().get_root().propagate_call("on_start_pitch", [artifact, pitch_duration], true)
+
+# Open bidding — broadcast to all peers
+func rpc_open_bidding() -> void:
+	_recv_open_bidding.rpc()
+
+@rpc("authority", "reliable", "call_local")
+func _recv_open_bidding() -> void:
+	get_tree().get_root().propagate_call("on_open_bidding", [], true)
+
+# Auctioneer requests early open — sent from client to host
+func send_open_early() -> void:
+	if is_host():
+		GameServer.open_bidding_from_peer(1)
+	else:
+		_recv_open_early.rpc_id(1)
+
+@rpc("any_peer", "reliable")
+func _recv_open_early() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	GameServer.open_bidding_from_peer(sender_id)
 
 # Broadcast auction result
 func rpc_show_bid_result(result: Dictionary) -> void:
@@ -104,7 +124,7 @@ func rpc_show_bid_result(result: Dictionary) -> void:
 func _recv_show_bid_result(result: Dictionary) -> void:
 	get_tree().get_root().propagate_call("on_show_bid_result", [result], true)
 
-# Broadcast chaos event (may be empty dict = no chaos)
+# Broadcast chaos event
 func rpc_show_chaos(chaos: Dictionary) -> void:
 	_recv_show_chaos.rpc(chaos)
 
@@ -120,7 +140,7 @@ func rpc_show_final_scores(ranking: Array) -> void:
 func _recv_show_final_scores(ranking: Array) -> void:
 	get_tree().get_root().propagate_call("on_show_final_scores", [ranking], true)
 
-# Host drives all scene transitions (all peers)
+# Host drives all scene transitions
 func rpc_advance_scene(scene_path: String) -> void:
 	_recv_advance_scene.rpc(scene_path)
 
@@ -128,7 +148,6 @@ func rpc_advance_scene(scene_path: String) -> void:
 func _recv_advance_scene(scene_path: String) -> void:
 	get_tree().change_scene_to_file(scene_path)
 
-# Host drives scene transition for one peer only
 func rpc_advance_scene_to_peer(peer_id: int, scene_path: String) -> void:
 	_recv_advance_scene.rpc_id(peer_id, scene_path)
 
@@ -136,7 +155,6 @@ func rpc_advance_scene_to_peer(peer_id: int, scene_path: String) -> void:
 
 func submit_bid(amount: int) -> void:
 	if is_host():
-		# Host sends to itself — call directly since rpc_id to self won't fire without call_local
 		bid_received.emit(multiplayer.get_unique_id(), amount)
 	else:
 		_recv_bid.rpc_id(1, amount)
