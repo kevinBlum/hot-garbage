@@ -32,6 +32,7 @@ func _build_ui() -> void:
 	outer.offset_top    = _UITheme.PAD * 2
 	outer.offset_right  = -_UITheme.PAD * 2
 	outer.offset_bottom = -_UITheme.PAD * 2
+	outer.custom_minimum_size = Vector2(960, 0)
 	scroll.add_child(outer)
 
 	var title := Label.new()
