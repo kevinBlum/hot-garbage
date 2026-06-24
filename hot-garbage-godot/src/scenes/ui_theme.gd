@@ -114,5 +114,29 @@ static func style_line_edit(le: LineEdit) -> void:
     le.add_theme_stylebox_override("focus", s)
     le.add_theme_stylebox_override("read_only", s)
 
+static func make_card() -> PanelContainer:
+    var card := PanelContainer.new()
+    card.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+    card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    card.add_theme_stylebox_override("panel", make_panel())
+    return card
+
+static func make_content_hbox(parent: Control) -> HBoxContainer:
+    var hbox := HBoxContainer.new()
+    hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+    hbox.offset_left   =  PAD
+    hbox.offset_top    =  PAD
+    hbox.offset_right  = -PAD
+    hbox.offset_bottom = -PAD
+    hbox.add_theme_constant_override("separation", GAP)
+    parent.add_child(hbox)
+    return hbox
+
+static func style_vseparator(sep: VSeparator) -> void:
+    var s := StyleBoxFlat.new()
+    s.bg_color = BORDER
+    sep.add_theme_stylebox_override("separator", s)
+    sep.custom_minimum_size = Vector2(1, 0)
+
 static func cat_color(category: String) -> Color:
     return CAT_COLORS.get(category.to_lower(), DIM)
