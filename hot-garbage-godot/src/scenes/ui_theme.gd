@@ -16,14 +16,14 @@ static var CAT_COLORS: Dictionary = {
     "junk":        Color.html("8A8A8A"),
 }
 
-const FS_LABEL    := 9
-const FS_BODY     := 12
-const FS_ARTIFACT := 17
-const FS_VALUE    := 27
-const FS_TIMER    := 32
-const PAD         := 12
-const GAP         := 8
-const HUD_WIDTH   := 130
+const FS_LABEL    := 13
+const FS_BODY     := 16
+const FS_ARTIFACT := 24
+const FS_VALUE    := 40
+const FS_TIMER    := 48
+const PAD         := 20
+const GAP         := 12
+const HUD_WIDTH   := 200
 
 static var _mono: SystemFont
 
