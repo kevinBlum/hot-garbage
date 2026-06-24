@@ -14,50 +14,89 @@ func _ready() -> void:
 func _build_ui() -> void:
 	_UITheme.add_bg(self)
 
-	var vbox := VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_CENTER)
-	vbox.custom_minimum_size = Vector2(640, 480)
-	vbox.add_theme_constant_override("separation", _UITheme.GAP * 2)
-	add_child(vbox)
+	var hbox := HBoxContainer.new()
+	hbox.set_anchors_preset(Control.PRESET_CENTER)
+	hbox.custom_minimum_size = Vector2(960, 520)
+	hbox.add_theme_constant_override("separation", 0)
+	add_child(hbox)
+
+	# --- Left panel: branding ---
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", _UITheme.GAP * 2)
+	left.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_child(left)
 
 	var title := Label.new()
 	title.text = "HOT GARBAGE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_UITheme.style_label(title, _UITheme.FS_ARTIFACT, _UITheme.GOLD)
-	vbox.add_child(title)
+	left.add_child(title)
 
-	var subtitle := Label.new()
-	subtitle.text = "a game of bluffing, bidding, and bad provenance"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_UITheme.style_label(subtitle, _UITheme.FS_LABEL, _UITheme.DIM)
-	vbox.add_child(subtitle)
+	var tagline := Label.new()
+	tagline.text = "a game of bluffing, bidding,\nand bad provenance"
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_UITheme.style_label(tagline, _UITheme.FS_LABEL, _UITheme.DIM)
+	left.add_child(tagline)
+
+	var meta := Label.new()
+	meta.text = "2–6 players · ~45 min"
+	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_UITheme.style_label(meta, _UITheme.FS_LABEL, _UITheme.DIM)
+	left.add_child(meta)
+
+	# --- Separator ---
+	var sep := VSeparator.new()
+	_UITheme.style_vseparator(sep)
+	hbox.add_child(sep)
+
+	# --- Right panel: form ---
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", _UITheme.GAP)
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_child(right)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "PLAYER NAME"
+	_UITheme.style_section_label(name_lbl)
+	right.add_child(name_lbl)
 
 	_name_field = LineEdit.new()
 	_name_field.placeholder_text = "Your name"
 	_UITheme.style_line_edit(_name_field)
-	vbox.add_child(_name_field)
+	right.add_child(_name_field)
+
+	var ip_lbl := Label.new()
+	ip_lbl.text = "HOST IP"
+	_UITheme.style_section_label(ip_lbl)
+	right.add_child(ip_lbl)
 
 	_ip_field = LineEdit.new()
-	_ip_field.placeholder_text = "Host IP (leave blank to host)"
+	_ip_field.placeholder_text = "Leave blank to host"
 	_UITheme.style_line_edit(_ip_field)
-	vbox.add_child(_ip_field)
+	right.add_child(_ip_field)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, _UITheme.GAP)
+	right.add_child(spacer)
 
 	var host_btn := Button.new()
 	host_btn.text = "HOST GAME"
 	host_btn.pressed.connect(_on_host_pressed)
 	_UITheme.style_button(host_btn)
-	vbox.add_child(host_btn)
+	right.add_child(host_btn)
 
 	var join_btn := Button.new()
 	join_btn.text = "JOIN GAME"
 	join_btn.pressed.connect(_on_join_pressed)
 	_UITheme.style_ghost_button(join_btn)
-	vbox.add_child(join_btn)
+	right.add_child(join_btn)
 
 	_status_label = Label.new()
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_UITheme.style_label(_status_label, _UITheme.FS_BODY, _UITheme.DIM)
-	vbox.add_child(_status_label)
+	right.add_child(_status_label)
 
 func _on_host_pressed() -> void:
 	var name := _name_field.text.strip_edges()
