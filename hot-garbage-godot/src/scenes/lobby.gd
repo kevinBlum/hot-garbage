@@ -53,7 +53,7 @@ func _build_ui() -> void:
 		_timer_spin.max_value = 120
 		_timer_spin.step = 5
 		_timer_spin.value = 45
-		_timer_spin.suffix = "sec"
+		_timer_spin.suffix = " sec"
 		_timer_spin.add_theme_font_override("font", _UITheme.mono())
 		_timer_spin.add_theme_font_size_override("font_size", _UITheme.FS_BODY)
 		_UITheme.style_line_edit(_timer_spin.get_line_edit())
