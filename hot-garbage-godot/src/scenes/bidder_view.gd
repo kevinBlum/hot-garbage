@@ -105,9 +105,8 @@ func _build_ui() -> void:
 	action_vbox.add_child(_bid_area)
 
 	var bid_row := HBoxContainer.new()
-	bid_row.set_anchors_preset(Control.PRESET_CENTER)
 	bid_row.add_theme_constant_override("separation", _UITheme.GAP)
-	_bid_area.add_child(bid_row)
+	_UITheme.add_center_container(_bid_area).add_child(bid_row)
 
 	var bid_lbl := Label.new()
 	bid_lbl.text = "Your bid: §"

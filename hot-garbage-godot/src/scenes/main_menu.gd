@@ -16,10 +16,9 @@ func _build_ui() -> void:
 	_UITheme.add_bg(self)
 
 	var hbox := HBoxContainer.new()
-	hbox.set_anchors_preset(Control.PRESET_CENTER)
 	hbox.custom_minimum_size = Vector2(960, 520)
 	hbox.add_theme_constant_override("separation", 0)
-	add_child(hbox)
+	_UITheme.add_center_container(self).add_child(hbox)
 
 	# --- Left panel: branding ---
 	var left := VBoxContainer.new()

@@ -1,8 +1,8 @@
 extends Node
 
-var master_volume: float = 1.0
-var sfx_volume:    float = 1.0
-var music_volume:  float = 1.0
+var master_volume: float = 0.5
+var sfx_volume:    float = 0.5
+var music_volume:  float = 0.5
 
 var _player_ui:      AudioStreamPlayer
 var _player_bid:     AudioStreamPlayer
@@ -44,9 +44,9 @@ func load_settings() -> void:
     if cfg.load("user://settings.cfg") != OK:
         apply_volumes()
         return
-    master_volume = cfg.get_value("audio", "master", 1.0)
-    sfx_volume    = cfg.get_value("audio", "sfx",    1.0)
-    music_volume  = cfg.get_value("audio", "music",  1.0)
+    master_volume = cfg.get_value("audio", "master", 0.5)
+    sfx_volume    = cfg.get_value("audio", "sfx",    0.5)
+    music_volume  = cfg.get_value("audio", "music",  0.5)
     apply_volumes()
 
 # ---- private ----
@@ -77,7 +77,7 @@ static func _make_beep(freq: float, duration: float, decay: float) -> AudioStrea
     data.resize(n * 2)
     for i in n:
         var t: float = float(i) / float(sample_rate)
-        var v: int = int(sin(TAU * freq * t) * 32767.0 * exp(-t * decay))
+        var v: int = int(sin(TAU * freq * t) * 16383.0 * exp(-t * decay))
         data.encode_s16(i * 2, clampi(v, -32768, 32767))
     var wav := AudioStreamWAV.new()
     wav.format   = AudioStreamWAV.FORMAT_16_BITS

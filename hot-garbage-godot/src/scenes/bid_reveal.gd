@@ -23,10 +23,9 @@ func _build_ui() -> void:
 	add_child(main)
 
 	var vbox := VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_CENTER)
 	vbox.custom_minimum_size = Vector2(960, 300)
 	vbox.add_theme_constant_override("separation", _UITheme.GAP * 2)
-	main.add_child(vbox)
+	_UITheme.add_center_container(main).add_child(vbox)
 
 	var header := Label.new()
 	header.text = "SOLD"
