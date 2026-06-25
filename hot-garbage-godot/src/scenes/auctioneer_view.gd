@@ -121,7 +121,7 @@ func _build_ui() -> void:
 		_force_btn.text = "FORCE RESOLVE"
 		_force_btn.pressed.connect(func():
 			AudioManager.play_ui()
-			GameServer.force_resolve())
+			NetworkManager.send_force_resolve())
 		_UITheme.style_ghost_button(_force_btn)
 		_force_btn.visible = false
 		btn_row.add_child(_force_btn)

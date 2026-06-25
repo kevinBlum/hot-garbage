@@ -63,8 +63,8 @@ func on_show_chaos(chaos: Dictionary) -> void:
 	else:
 		_chaos_label.text = "EVENT: %s" % chaos.text
 		var extra: Dictionary = chaos.get("extra", {})
-		if extra.has("victim") and extra.has("lost_name"):
-			_chaos_label.text += "\n%s loses \"%s\"!" % [extra.victim, extra.lost_name]
+		if extra.has("victim") and extra.has("lostName"):
+			_chaos_label.text += "\n%s loses \"%s\"!" % [extra.victim, extra.lostName]
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):

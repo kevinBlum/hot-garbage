@@ -114,7 +114,7 @@ async function handleJoinRoom(ws, msg, ctx) {
   broadcastRoom(roomName, { type: 'player_joined', playerName, players }, playerName);
 }
 
-function handleStartGame(ws, ctx) {
+function handleStartGame(ws, msg, ctx) {
   const { roomName, playerName } = ctx;
   const room = rooms.get(roomName);
   if (!room || room.createdBy !== playerName) return;
@@ -123,7 +123,8 @@ function handleStartGame(ws, ctx) {
 
   const playerNames = [...room.players.keys()];
   room.wasRestored = false;
-  room.session = new GameSession(playerNames, room.config, makeSend(roomName));
+  const sessionConfig = { ...room.config, pitchDuration: msg.pitchDuration || room.config.pitchDuration };
+  room.session = new GameSession(playerNames, sessionConfig, makeSend(roomName));
   room.session.start();
 }
 
@@ -179,7 +180,7 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'create_room':   return handleCreateRoom(ws, msg, ctx);
       case 'join_room':     return handleJoinRoom(ws, msg, ctx);
-      case 'start_game':    return handleStartGame(ws, ctx);
+      case 'start_game':    return handleStartGame(ws, msg, ctx);
       case 'open_early':    return handleOpenEarly(ws, ctx);
       case 'submit_bid':    return handleSubmitBid(ws, msg, ctx);
       case 'force_resolve': return handleForceResolve(ws, ctx);

@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 COPY hot-garbage-server/package*.json ./hot-garbage-server/
 COPY server/ ./server/
