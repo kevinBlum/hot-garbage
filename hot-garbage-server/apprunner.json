@@ -1,0 +1,26 @@
+{
+  "ServiceName": "hot-garbage",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "[ACCOUNT].dkr.ecr.us-east-1.amazonaws.com/hot-garbage-server:latest",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {
+        "Port": "3000",
+        "RuntimeEnvironmentVariables": {
+          "DYNAMODB_TABLE": "hot-garbage-rooms",
+          "DYNAMODB_REGION": "us-east-1",
+          "PORT": "3000"
+        }
+      }
+    },
+    "AutoDeploymentsEnabled": false
+  },
+  "InstanceConfiguration": {
+    "Cpu": "0.25 vCPU",
+    "Memory": "0.5 GB"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "TCP",
+    "Port": "3000"
+  }
+}
