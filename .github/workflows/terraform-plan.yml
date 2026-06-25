@@ -1,0 +1,99 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'hot-garbage-server/**'
+      - '.github/workflows/reusable-deploy.yml'
+      - '.github/workflows/deploy.yml'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    name: Terraform Plan (prod)
+    runs-on: ubuntu-latest
+    environment: prod
+    concurrency:
+      group: terraform-prod
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
+        with:
+          terraform_version: "1.11.0"
+          terraform_wrapper: true
+
+      - name: Terraform Format Check
+        working-directory: infra
+        id: fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: infra
+        id: init
+        run: terraform init -input=false
+
+      - name: Select Workspace
+        working-directory: infra
+        run: terraform workspace select prod || terraform workspace new prod
+
+      - name: Terraform Validate
+        working-directory: infra
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        working-directory: infra
+        id: plan
+        run: terraform plan -var-file="prod.tfvars" -no-color
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const output = `### Terraform Plan (prod)
+
+            #### Format 🖌\`${process.env.FMT_OUTCOME}\`
+            #### Init ⚙️\`${process.env.INIT_OUTCOME}\`
+            #### Validate 🤖\`${process.env.VALIDATE_OUTCOME}\`
+            #### Plan 📖\`${process.env.PLAN_OUTCOME}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${process.env.PLAN_OUTPUT}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });

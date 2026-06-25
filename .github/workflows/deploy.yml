@@ -1,0 +1,24 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Integration Tests
+    uses: ./.github/workflows/ci.yml
+
+  deploy-prod:
+    name: Deploy to Prod
+    needs: [ci]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: prod
+      image_tag: ${{ github.sha }}
