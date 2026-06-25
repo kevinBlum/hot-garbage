@@ -14,7 +14,7 @@ process.env.DYNAMODB_ENDPOINT = `http://localhost:${DYNALITE_PORT}`;
 process.env.PORT = String(SERVER_PORT);
 
 // Start server in-process after env is set
-require('../server');
+const { close: closeServer } = require('../server');
 
 const dbClient = new DynamoDBClient({
   region: 'us-east-1',
@@ -57,6 +57,7 @@ before(async () => {
 });
 
 after(async () => {
+  closeServer();
   try {
     await dbClient.send(new DeleteTableCommand({ TableName: 'hg-integration-rooms' }));
   } catch (_) {}

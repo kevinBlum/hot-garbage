@@ -197,4 +197,6 @@ startup()
   .then(() => console.log(`Hot Garbage server listening on :${PORT}`))
   .catch(err => console.warn('Startup warning (DynamoDB may not be ready):', err.message));
 
-module.exports = { wss, rooms };
+function close() { wss.close(); }
+
+module.exports = { wss, rooms, close };
