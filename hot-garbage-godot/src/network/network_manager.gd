@@ -34,7 +34,9 @@ func _process(_delta: float) -> void:
 	var state := _ws.get_ready_state()
 	if state == WebSocketPeer.STATE_OPEN:
 		_process_pending()
-		while _ws.get_available_packet_count() > 0:
+		# One packet per frame so deferred scene changes (advance_scene) complete
+		# before subsequent messages (auctioneer_reveal, start_pitch) are dispatched.
+		if _ws.get_available_packet_count() > 0:
 			var raw := _ws.get_packet().get_string_from_utf8()
 			var msg = JSON.parse_string(raw)
 			if msg is Dictionary:

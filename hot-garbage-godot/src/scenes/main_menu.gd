@@ -6,6 +6,11 @@ var _name_field: LineEdit
 var _room_field: LineEdit
 var _password_field: LineEdit
 var _status_label: Label
+var _hint_label: Label
+var _action_btn: Button
+var _host_tab: Button
+var _join_tab: Button
+var _mode: String = "host"  # "host" or "join"
 var _dialog_open: bool = false
 
 func _ready() -> void:
@@ -90,21 +95,39 @@ func _build_ui() -> void:
 	_UITheme.style_line_edit(_password_field)
 	right.add_child(_password_field)
 
+	# Host / Join tab row
+	var tab_row := HBoxContainer.new()
+	tab_row.add_theme_constant_override("separation", 0)
+	right.add_child(tab_row)
+
+	_host_tab = Button.new()
+	_host_tab.text = "HOST"
+	_host_tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_host_tab.pressed.connect(_set_mode.bind("host"))
+	_UITheme.style_button(_host_tab)
+	tab_row.add_child(_host_tab)
+
+	_join_tab = Button.new()
+	_join_tab.text = "JOIN"
+	_join_tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_join_tab.pressed.connect(_set_mode.bind("join"))
+	_UITheme.style_ghost_button(_join_tab)
+	tab_row.add_child(_join_tab)
+
+	_hint_label = Label.new()
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_UITheme.style_label(_hint_label, _UITheme.FS_LABEL, _UITheme.DIM)
+	right.add_child(_hint_label)
+
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, _UITheme.GAP)
 	right.add_child(spacer)
 
-	var create_btn := Button.new()
-	create_btn.text = "CREATE ROOM"
-	create_btn.pressed.connect(_on_create_pressed)
-	_UITheme.style_button(create_btn)
-	right.add_child(create_btn)
-
-	var join_btn := Button.new()
-	join_btn.text = "JOIN ROOM"
-	join_btn.pressed.connect(_on_join_pressed)
-	_UITheme.style_ghost_button(join_btn)
-	right.add_child(join_btn)
+	_action_btn = Button.new()
+	_action_btn.pressed.connect(_on_action_pressed)
+	_UITheme.style_button(_action_btn)
+	right.add_child(_action_btn)
 
 	var settings_btn := Button.new()
 	settings_btn.text = "SETTINGS"
@@ -117,6 +140,8 @@ func _build_ui() -> void:
 	_UITheme.style_label(_status_label, _UITheme.FS_BODY, _UITheme.DIM)
 	right.add_child(_status_label)
 
+	_set_mode("host")
+
 func _validate() -> bool:
 	if _name_field.text.strip_edges().is_empty():
 		_status_label.text = "Enter your name."
@@ -126,27 +151,38 @@ func _validate() -> bool:
 		return false
 	return true
 
-func _on_create_pressed() -> void:
-	AudioManager.play_ui()
-	if not _validate():
-		return
-	_status_label.text = "Creating room..."
-	NetworkManager.create_room(
-		_room_field.text.strip_edges(),
-		_password_field.text,
-		_name_field.text.strip_edges()
-	)
+func _set_mode(m: String) -> void:
+	_mode = m
+	if m == "host":
+		_UITheme.style_button(_host_tab)
+		_UITheme.style_ghost_button(_join_tab)
+		_hint_label.text = "You'll create the room and start the game."
+		_action_btn.text = "CREATE ROOM"
+	else:
+		_UITheme.style_ghost_button(_host_tab)
+		_UITheme.style_button(_join_tab)
+		_hint_label.text = "Enter the room name and password your host shared."
+		_action_btn.text = "JOIN ROOM"
+	_status_label.text = ""
 
-func _on_join_pressed() -> void:
+func _on_action_pressed() -> void:
 	AudioManager.play_ui()
 	if not _validate():
 		return
-	_status_label.text = "Joining room..."
-	NetworkManager.join_room(
-		_room_field.text.strip_edges(),
-		_password_field.text,
-		_name_field.text.strip_edges()
-	)
+	if _mode == "host":
+		_status_label.text = "Creating room..."
+		NetworkManager.create_room(
+			_room_field.text.strip_edges(),
+			_password_field.text,
+			_name_field.text.strip_edges()
+		)
+	else:
+		_status_label.text = "Joining room..."
+		NetworkManager.join_room(
+			_room_field.text.strip_edges(),
+			_password_field.text,
+			_name_field.text.strip_edges()
+		)
 
 func _on_room_joined(_room_name: String, _is_host: bool) -> void:
 	get_tree().change_scene_to_file("res://src/scenes/lobby.tscn")
