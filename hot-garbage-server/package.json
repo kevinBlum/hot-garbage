@@ -10,7 +10,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/util-dynamodb": "^3.0.0",
-    "bcrypt": "^5.1.0",
+    "bcrypt": "^6.0.0",
     "ws": "^8.0.0"
   },
   "devDependencies": {
