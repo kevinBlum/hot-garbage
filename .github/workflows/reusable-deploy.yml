@@ -61,6 +61,22 @@ jobs:
           TF_WORKSPACE_NAME: ${{ inputs.environment }}
         run: terraform workspace select "${TF_WORKSPACE_NAME}" || terraform workspace new "${TF_WORKSPACE_NAME}"
 
+      - name: Clean stale ECS task definition from state
+        working-directory: infra
+        run: |
+          ARN=$(terraform state show aws_ecs_task_definition.server 2>/dev/null \
+            | grep '"arn"' | sed 's/.*= "\(.*\)"/\1/') || true
+          if [ -n "$ARN" ]; then
+            STATUS=$(aws ecs describe-task-definition \
+              --task-definition "$ARN" \
+              --query 'taskDefinition.status' \
+              --output text 2>/dev/null || echo "NOT_FOUND")
+            if [ "$STATUS" = "NOT_FOUND" ] || [ "$STATUS" = "DELETE_IN_PROGRESS" ]; then
+              echo "Removing stale task definition from state: $ARN (status=$STATUS)"
+              terraform state rm aws_ecs_task_definition.server
+            fi
+          fi
+
       - name: Bootstrap ECR (idempotent targeted apply)
         working-directory: infra
         env:

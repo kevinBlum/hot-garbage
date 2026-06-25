@@ -1,3 +1,10 @@
+# ECS needs its service-linked role to exist before using FARGATE/FARGATE_SPOT
+# capacity providers. This role is account-wide so it's created once here and
+# subsequent applies are no-ops (Terraform state tracks it).
+resource "aws_iam_service_linked_role" "ecs" {
+  aws_service_name = "ecs.amazonaws.com"
+}
+
 resource "aws_ecs_cluster" "server" {
   name = local.name_prefix
 
@@ -19,6 +26,8 @@ resource "aws_ecs_cluster_capacity_providers" "server" {
     weight            = 1
     capacity_provider = var.use_fargate_spot ? "FARGATE_SPOT" : "FARGATE"
   }
+
+  depends_on = [aws_iam_service_linked_role.ecs]
 }
 
 resource "aws_ecs_task_definition" "server" {
