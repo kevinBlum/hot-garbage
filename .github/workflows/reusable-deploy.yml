@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Target environment (dev, prod)"
+        description: "Target environment (dev, stage, prod)"
         required: true
         type: string
       image_tag:
@@ -30,7 +30,7 @@ jobs:
           INPUT_ENVIRONMENT: ${{ inputs.environment }}
         run: |
           case "${INPUT_ENVIRONMENT}" in
-            dev|prod) ;;
+            dev|stage|prod) ;;
             *) echo "::error::Invalid environment: ${INPUT_ENVIRONMENT}"; exit 1 ;;
           esac
 

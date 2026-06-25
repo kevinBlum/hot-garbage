@@ -16,11 +16,11 @@ permissions:
 
 jobs:
   plan:
-    name: Terraform Plan (prod)
+    name: Terraform Plan (dev)
     runs-on: ubuntu-latest
-    environment: prod
+    environment: dev
     concurrency:
-      group: terraform-prod
+      group: terraform-dev
       cancel-in-progress: false
 
     steps:
@@ -53,7 +53,7 @@ jobs:
 
       - name: Select Workspace
         working-directory: infra
-        run: terraform workspace select prod || terraform workspace new prod
+        run: terraform workspace select dev || terraform workspace new dev
 
       - name: Terraform Validate
         working-directory: infra
@@ -63,7 +63,7 @@ jobs:
       - name: Terraform Plan
         working-directory: infra
         id: plan
-        run: terraform plan -var-file="prod.tfvars" -no-color
+        run: terraform plan -var-file="dev.tfvars" -no-color
 
       - name: Comment PR with Plan
         if: github.event_name == 'pull_request'
@@ -76,7 +76,7 @@ jobs:
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
         with:
           script: |
-            const output = `### Terraform Plan (prod)
+            const output = `### Terraform Plan (dev)
 
             #### Format 🖌\`${process.env.FMT_OUTCOME}\`
             #### Init ⚙️\`${process.env.INIT_OUTCOME}\`
