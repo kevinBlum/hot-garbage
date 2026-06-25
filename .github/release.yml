@@ -1,0 +1,22 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: New features
+      labels:
+        - feat
+      prefix_patterns:
+        - "feat:"
+        - "feat("
+    - title: Bug fixes
+      labels:
+        - fix
+      prefix_patterns:
+        - "fix:"
+        - "fix("
+    - title: Infrastructure
+      prefix_patterns:
+        - "chore:"
+        - "ci:"
+        - "build:"
