@@ -77,6 +77,16 @@ jobs:
             fi
           fi
 
+      - name: Re-import ECS service-linked role to clear tainted state
+        working-directory: infra
+        run: |
+          if aws iam get-role --role-name AWSServiceRoleForECS \
+              --query 'Role.Arn' --output text 2>/dev/null; then
+            echo "ECS SLR exists in AWS — re-importing to clear any tainted state"
+            terraform state rm aws_iam_service_linked_role.ecs 2>/dev/null || true
+            terraform import aws_iam_service_linked_role.ecs ecs.amazonaws.com
+          fi
+
       - name: Bootstrap ECR (idempotent targeted apply)
         working-directory: infra
         env:
