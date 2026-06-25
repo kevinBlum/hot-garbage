@@ -1,0 +1,4 @@
+# Godot runtime caches — keep .gdignore so Godot skips re-importing its own dir
+.godot/*
+!.godot/.gdignore
+exports/
