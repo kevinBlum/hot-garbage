@@ -120,6 +120,19 @@ jobs:
             --push \
             .
 
+      - name: Diagnose ECS task definition family state
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          echo "=== Active task definitions ==="
+          aws ecs list-task-definitions \
+            --family-prefix "hot-garbage-${INPUT_ENVIRONMENT}" \
+            --status ACTIVE --output text 2>&1 || echo "(none or permission denied)"
+          echo "=== Inactive task definitions ==="
+          aws ecs list-task-definitions \
+            --family-prefix "hot-garbage-${INPUT_ENVIRONMENT}" \
+            --status INACTIVE --output text 2>&1 || echo "(none or permission denied)"
+
       - name: Terraform Plan
         working-directory: infra
         id: plan
