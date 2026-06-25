@@ -71,7 +71,7 @@ jobs:
               --task-definition "$ARN" \
               --query 'taskDefinition.status' \
               --output text 2>/dev/null || echo "NOT_FOUND")
-            if [ "$STATUS" = "NOT_FOUND" ] || [ "$STATUS" = "DELETE_IN_PROGRESS" ]; then
+            if [ "$STATUS" = "NOT_FOUND" ] || [ "$STATUS" = "DELETE_IN_PROGRESS" ] || [ "$STATUS" = "INACTIVE" ]; then
               echo "Removing stale task definition from state: $ARN (status=$STATUS)"
               terraform state rm aws_ecs_task_definition.server
             fi
