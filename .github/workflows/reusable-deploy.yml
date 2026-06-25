@@ -64,6 +64,11 @@ jobs:
       - name: Clean stale ECS task definition from state
         working-directory: infra
         run: |
+          # Untaint first: a tainted task def triggers Destroy+Create which
+          # calls DeregisterTaskDefinition with the family name (not ARN),
+          # causing AccessDenied. Untainting lets Terraform do a normal update.
+          terraform untaint aws_ecs_task_definition.server 2>/dev/null || true
+
           # Extract the arn attribute (not arn_without_revision) using word-boundary grep
           ARN=$(terraform state show aws_ecs_task_definition.server 2>/dev/null \
             | grep -E '^\s+arn\s+=' | awk -F'"' '{print $2}') || true
