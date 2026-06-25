@@ -161,13 +161,11 @@ func _build_ui() -> void:
 func _refresh_players() -> void:
 	for child in _player_vbox.get_children():
 		child.queue_free()
-	var own_id: int = multiplayer.get_unique_id()
-	for peer_id in NetworkManager.player_names:
-		var name: String = NetworkManager.player_names[peer_id]
+	for name in NetworkManager.player_names:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", _UITheme.GAP)
 		_player_vbox.add_child(row)
-		var is_me: bool = peer_id == own_id
+		var is_me: bool = name == NetworkManager.local_name
 		var name_lbl := Label.new()
 		name_lbl.text = name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

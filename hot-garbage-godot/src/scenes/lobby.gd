@@ -9,8 +9,8 @@ var _timer_spin: SpinBox
 
 func _ready() -> void:
 	_build_ui()
-	NetworkManager.player_registered.connect(_on_player_changed)
-	NetworkManager.player_disconnected.connect(_on_player_changed)
+	NetworkManager.player_registered.connect(func(_n): _refresh_player_list())
+	NetworkManager.player_disconnected.connect(func(_n): _refresh_player_list())
 	_refresh_player_list()
 
 func _build_ui() -> void:
@@ -58,6 +58,13 @@ func _build_ui() -> void:
 		_UITheme.style_line_edit(_timer_spin.get_line_edit())
 		vbox.add_child(_timer_spin)
 
+		if NetworkManager.server_restarted:
+			var restart_lbl := Label.new()
+			restart_lbl.text = "Server restarted — start a new game."
+			_UITheme.style_label(restart_lbl, _UITheme.FS_BODY, Color(1, 0.6, 0.2))
+			restart_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			vbox.add_child(restart_lbl)
+
 		_start_btn = Button.new()
 		_start_btn.text = "START GAME"
 		_start_btn.pressed.connect(_on_start_pressed)
@@ -67,24 +74,18 @@ func _build_ui() -> void:
 func _refresh_player_list() -> void:
 	for child in _player_list.get_children():
 		child.queue_free()
-	for peer_id in NetworkManager.player_names:
+	for name in NetworkManager.player_names:
 		var lbl := Label.new()
-		lbl.text = "• %s" % NetworkManager.player_names[peer_id]
+		lbl.text = "• %s" % name
 		_UITheme.style_label(lbl, _UITheme.FS_BODY, _UITheme.TEXT)
 		_player_list.add_child(lbl)
 	var count := NetworkManager.player_names.size()
 	if NetworkManager.is_host():
 		_status_label.text = "%d player(s) connected" % count
 
-func _on_player_changed(_a = null, _b = null) -> void:
-	_refresh_player_list()
-
 func _on_start_pressed() -> void:
 	AudioManager.play_ui()
-	var player_ids: Array = []
-	for peer_id in NetworkManager.player_names:
-		player_ids.append(NetworkManager.player_names[peer_id])
 	var duration: int = 45
 	if _timer_spin != null:
 		duration = int(_timer_spin.value)
-	GameServer.start_game(player_ids, duration)
+	NetworkManager.start_game(duration)

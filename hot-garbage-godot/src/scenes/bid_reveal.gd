@@ -51,9 +51,7 @@ func on_show_bid_result(result: Dictionary) -> void:
 	if result.winner == "BANK":
 		_result_label.text = "No takers.\nBank paid §%d." % result.price
 	else:
-		var winner_name: String = NetworkManager.player_names.get(
-			_peer_id_for_name(result.winner), result.winner)
-		_result_label.text = "%s\nwon for §%d!" % [winner_name, result.price]
+		_result_label.text = "%s\nwon for §%d!" % [result.winner, result.price]
 	# Refresh HUD now that player state has been updated by GameServer
 	_hud.refresh()
 
@@ -67,12 +65,6 @@ func on_show_chaos(chaos: Dictionary) -> void:
 		var extra: Dictionary = chaos.get("extra", {})
 		if extra.has("victim") and extra.has("lost_name"):
 			_chaos_label.text += "\n%s loses \"%s\"!" % [extra.victim, extra.lost_name]
-
-func _peer_id_for_name(player_name: String) -> int:
-	for pid in NetworkManager.player_names:
-		if NetworkManager.player_names[pid] == player_name:
-			return pid
-	return -1
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
