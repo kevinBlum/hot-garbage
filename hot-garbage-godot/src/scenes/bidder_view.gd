@@ -48,9 +48,12 @@ func _build_ui() -> void:
 	left_col.add_child(artifact_card)
 
 	var artifact_center := CenterContainer.new()
+	artifact_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	artifact_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	artifact_card.add_child(artifact_center)
 
 	var artifact_vbox := VBoxContainer.new()
+	artifact_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	artifact_vbox.add_theme_constant_override("separation", _UITheme.GAP)
 	artifact_center.add_child(artifact_vbox)
 
