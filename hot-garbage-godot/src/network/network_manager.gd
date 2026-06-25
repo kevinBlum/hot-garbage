@@ -8,8 +8,8 @@ signal server_disconnected()
 signal error_received(code: String, message: String)
 signal bid_count_updated(received: int, total: int)
 
-const SERVER_URL := "ws://localhost:3000/ws"
-# const SERVER_URL := "wss://your-domain.awsapprunner.com/ws"
+const SERVER_URL := "ws://localhost:3000"
+# const SERVER_URL := "wss://your-domain.awsapprunner.com"
 
 const SCENE_PATHS := {
 	"lobby":           "res://src/scenes/lobby.tscn",
@@ -136,24 +136,24 @@ func _dispatch(msg: Dictionary) -> void:
 			if SCENE_PATHS.has(scene_key):
 				get_tree().change_scene_to_file(SCENE_PATHS[scene_key])
 		"auctioneer_reveal":
-			get_tree().current_scene.propagate_call("on_auctioneer_reveal",
-				[msg.get("artifact", {}), msg.get("pitchDuration", 45)])
+			get_tree().get_root().propagate_call("on_auctioneer_reveal",
+				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
 		"start_pitch":
-			get_tree().current_scene.propagate_call("on_start_pitch",
-				[msg.get("artifact", {}), msg.get("pitchDuration", 45)])
+			get_tree().get_root().propagate_call("on_start_pitch",
+				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
 			if msg.has("auctioneerName"):
-				get_tree().current_scene.propagate_call("on_auctioneer_name",
-					[msg.get("auctioneerName", "")])
+				get_tree().get_root().propagate_call("on_auctioneer_name",
+					[msg.get("auctioneerName", "")], true)
 		"open_bidding":
-			get_tree().current_scene.propagate_call("on_open_bidding", [])
+			get_tree().get_root().propagate_call("on_open_bidding", [], true)
 		"bid_result":
-			get_tree().current_scene.propagate_call("on_show_bid_result", [msg])
+			get_tree().get_root().propagate_call("on_show_bid_result", [msg], true)
 		"chaos":
-			get_tree().current_scene.propagate_call("on_show_chaos", [msg])
+			get_tree().get_root().propagate_call("on_show_chaos", [msg], true)
 		"sync_player_state":
 			GameServer.receive_player_state(msg.get("cash", 0), msg.get("artifacts", []))
 		"final_scores":
-			get_tree().current_scene.propagate_call("on_show_final_scores",
-				[msg.get("ranking", [])])
+			get_tree().get_root().propagate_call("on_show_final_scores",
+				[msg.get("ranking", [])], true)
 		"bid_count":
 			bid_count_updated.emit(msg.get("received", 0), msg.get("total", 0))
