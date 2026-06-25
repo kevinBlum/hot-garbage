@@ -1,0 +1,129 @@
+name: Reusable Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Target environment (dev, stage, prod)"
+        required: true
+        type: string
+      image_tag:
+        description: "Docker image tag (Git SHA)"
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate inputs
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          case "${INPUT_ENVIRONMENT}" in
+            dev|stage|prod) ;;
+            *) echo "::error::Invalid environment: ${INPUT_ENVIRONMENT}"; exit 1 ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
+        with:
+          terraform_version: "1.11.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init -input=false
+
+      - name: Select Workspace
+        working-directory: infra
+        env:
+          TF_WORKSPACE_NAME: ${{ inputs.environment }}
+        run: terraform workspace select "${TF_WORKSPACE_NAME}" || terraform workspace new "${TF_WORKSPACE_NAME}"
+
+      - name: Bootstrap ECR (idempotent targeted apply)
+        working-directory: infra
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          terraform apply \
+            -var-file="${INPUT_ENVIRONMENT}.tfvars" \
+            -target=aws_ecr_repository.server \
+            -auto-approve
+
+      - name: Get ECR repository URL
+        id: ecr-url
+        working-directory: infra
+        run: echo "url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@ea7ce39ebf175fdb68dbda87bc46a72ad45cfd4b # v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REPOSITORY_URL: ${{ steps.ecr-url.outputs.url }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --file hot-garbage-server/Dockerfile \
+            --tag "${ECR_REPOSITORY_URL}:${IMAGE_TAG}" \
+            --tag "${ECR_REPOSITORY_URL}:latest" \
+            --push \
+            .
+
+      - name: Terraform Plan
+        working-directory: infra
+        id: plan
+        env:
+          TF_VAR_image_tag: ${{ inputs.image_tag }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: terraform plan -var-file="${INPUT_ENVIRONMENT}.tfvars" -out=tfplan -no-color
+
+      - name: Terraform Apply
+        working-directory: infra
+        env:
+          TF_VAR_image_tag: ${{ inputs.image_tag }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Wait for ECS service stability
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          aws ecs wait services-stable \
+            --cluster "hot-garbage-${INPUT_ENVIRONMENT}" \
+            --services "hot-garbage-${INPUT_ENVIRONMENT}"
+
+      - name: Post deployment summary
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          ALB_DNS=$(cd infra && terraform output -raw alb_dns_name)
+          {
+            echo "### Deployment Summary"
+            echo "- **Environment**: ${INPUT_ENVIRONMENT}"
+            echo "- **Image Tag**: ${IMAGE_TAG}"
+            echo "- **Server URL**: ws://${ALB_DNS}"
+            echo "- **Status**: Deployed successfully"
+          } >> "$GITHUB_STEP_SUMMARY"

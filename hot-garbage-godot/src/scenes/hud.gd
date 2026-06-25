@@ -69,7 +69,7 @@ func _ready() -> void:
     refresh()
 
 func refresh() -> void:
-    var own_id: String = NetworkManager.player_names.get(multiplayer.get_unique_id(), "")
+    var own_id: String = NetworkManager.local_name
 
     var cash: int = GameServer.player_cash.get(own_id, 0)
     _cash_label.text = "§%d" % cash

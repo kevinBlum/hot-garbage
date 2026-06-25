@@ -48,9 +48,12 @@ func _build_ui() -> void:
 	left_col.add_child(artifact_card)
 
 	var artifact_center := CenterContainer.new()
+	artifact_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	artifact_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	artifact_card.add_child(artifact_center)
 
 	var artifact_vbox := VBoxContainer.new()
+	artifact_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	artifact_vbox.add_theme_constant_override("separation", _UITheme.GAP)
 	artifact_center.add_child(artifact_vbox)
 
@@ -105,9 +108,8 @@ func _build_ui() -> void:
 	action_vbox.add_child(_bid_area)
 
 	var bid_row := HBoxContainer.new()
-	bid_row.set_anchors_preset(Control.PRESET_CENTER)
 	bid_row.add_theme_constant_override("separation", _UITheme.GAP)
-	_bid_area.add_child(bid_row)
+	_UITheme.add_center_container(_bid_area).add_child(bid_row)
 
 	var bid_lbl := Label.new()
 	bid_lbl.text = "Your bid: §"
@@ -162,13 +164,11 @@ func _build_ui() -> void:
 func _refresh_players() -> void:
 	for child in _player_vbox.get_children():
 		child.queue_free()
-	var own_id: int = multiplayer.get_unique_id()
-	for peer_id in NetworkManager.player_names:
-		var name: String = NetworkManager.player_names[peer_id]
+	for name in NetworkManager.player_names:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", _UITheme.GAP)
 		_player_vbox.add_child(row)
-		var is_me: bool = peer_id == own_id
+		var is_me: bool = name == NetworkManager.local_name
 		var name_lbl := Label.new()
 		name_lbl.text = name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

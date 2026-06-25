@@ -1,189 +1,161 @@
 extends Node
 
-signal player_registered(peer_id: int, player_name: String)
-signal player_disconnected(peer_id: int)
+signal room_joined(room_name: String, is_host: bool)
+signal player_registered(player_name: String)
+signal player_disconnected(player_name: String)
 signal connection_failed()
 signal server_disconnected()
-signal bid_received(peer_id: int, amount: int)
+signal error_received(code: String, message: String)
+signal bid_count_updated(received: int, total: int)
 
-const PORT := 7777
-const MAX_PEERS := 8
+const SERVER_URL := "ws://localhost:3000"
+# const SERVER_URL := "wss://your-domain.awsapprunner.com"
 
-var player_names: Dictionary = {}
-var _local_name: String = ""
+const SCENE_PATHS := {
+	"lobby":           "res://src/scenes/lobby.tscn",
+	"auctioneer_view": "res://src/scenes/auctioneer_view.tscn",
+	"bidder_view":     "res://src/scenes/bidder_view.tscn",
+	"bid_reveal":      "res://src/scenes/bid_reveal.tscn",
+	"final_scores":    "res://src/scenes/final_scores.tscn",
+}
 
-# --- Transport ---
+var player_names: Array[String] = []
+var local_name: String = ""
+var room_name: String = ""
+var server_restarted: bool = false
+var _is_host: bool = false
+var _ws: WebSocketPeer = null
+var _pending_send: Dictionary = {}
 
-func host(player_name: String) -> void:
-	_local_name = player_name
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(PORT, MAX_PEERS)
-	assert(err == OK, "Failed to create server: %d" % err)
-	multiplayer.multiplayer_peer = peer
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	player_names[1] = player_name
-
-func join(ip: String, player_name: String) -> void:
-	_local_name = player_name
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_client(ip, PORT)
-	assert(err == OK, "Failed to connect: %d" % err)
-	multiplayer.multiplayer_peer = peer
-	multiplayer.connected_to_server.connect(_on_connected_to_server)
-	multiplayer.connection_failed.connect(_on_connection_failed)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
-
-func disconnect_from_game() -> void:
-	if multiplayer.peer_connected.is_connected(_on_peer_connected):
-		multiplayer.peer_connected.disconnect(_on_peer_connected)
-	if multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
-		multiplayer.peer_disconnected.disconnect(_on_peer_disconnected)
-	if multiplayer.connected_to_server.is_connected(_on_connected_to_server):
-		multiplayer.connected_to_server.disconnect(_on_connected_to_server)
-	if multiplayer.connection_failed.is_connected(_on_connection_failed):
-		multiplayer.connection_failed.disconnect(_on_connection_failed)
-	if multiplayer.server_disconnected.is_connected(_on_server_disconnected):
-		multiplayer.server_disconnected.disconnect(_on_server_disconnected)
-	multiplayer.multiplayer_peer = null
-	player_names.clear()
-
-func is_host() -> bool:
-	return multiplayer.is_server()
-
-func get_peer_ids() -> Array:
-	return multiplayer.get_peers()
-
-# --- Peer lifecycle ---
-
-func _on_peer_connected(_peer_id: int) -> void:
-	pass
-
-func _on_peer_disconnected(peer_id: int) -> void:
-	player_names.erase(peer_id)
-	player_disconnected.emit(peer_id)
-
-func _on_connected_to_server() -> void:
-	_register_self.rpc_id(1, _local_name)
-
-func _on_connection_failed() -> void:
-	connection_failed.emit()
-
-func _on_server_disconnected() -> void:
-	server_disconnected.emit()
-
-# --- Registration ---
-
-@rpc("any_peer", "reliable")
-func _register_self(player_name: String) -> void:
-	if not multiplayer.is_server():
+func _process(_delta: float) -> void:
+	if _ws == null:
 		return
-	var sender_id: int = multiplayer.get_remote_sender_id()
-	player_names[sender_id] = player_name
-	_sync_player_joined.rpc(sender_id, player_name)
-	for id in player_names:
-		if id != sender_id:
-			_sync_player_joined.rpc_id(sender_id, id, player_names[id])
+	_ws.poll()
+	var state := _ws.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN:
+		_process_pending()
+		# One packet per frame so deferred scene changes (advance_scene) complete
+		# before subsequent messages (auctioneer_reveal, start_pitch) are dispatched.
+		if _ws.get_available_packet_count() > 0:
+			var raw := _ws.get_packet().get_string_from_utf8()
+			var msg = JSON.parse_string(raw)
+			if msg is Dictionary:
+				_dispatch(msg)
+	elif state == WebSocketPeer.STATE_CLOSED:
+		var code := _ws.get_close_code()
+		_ws = null
+		if code == -1:
+			connection_failed.emit()
+		else:
+			server_disconnected.emit()
 
-@rpc("authority", "reliable", "call_local")
-func _sync_player_joined(peer_id: int, player_name: String) -> void:
-	player_names[peer_id] = player_name
-	player_registered.emit(peer_id, player_name)
+func create_room(p_room_name: String, password: String, player_name: String) -> void:
+	local_name = player_name
+	_connect_and_send({
+		"type": "create_room",
+		"roomName": p_room_name.to_lower(),
+		"password": password,
+		"playerName": player_name,
+	})
 
-# --- Auction RPCs ---
+func join_room(p_room_name: String, password: String, player_name: String) -> void:
+	local_name = player_name
+	_connect_and_send({
+		"type": "join_room",
+		"roomName": p_room_name.to_lower(),
+		"password": password,
+		"playerName": player_name,
+	})
 
-# Send full artifact (with value) + pitch duration to auctioneer only
-func rpc_reveal_to_auctioneer(auctioneer_peer_id: int, artifact: Dictionary, pitch_duration: int) -> void:
-	_recv_reveal_to_auctioneer.rpc_id(auctioneer_peer_id, artifact, pitch_duration)
+func start_game(pitch_duration: int) -> void:
+	_send({ "type": "start_game", "pitchDuration": pitch_duration })
 
-@rpc("authority", "reliable")
-func _recv_reveal_to_auctioneer(artifact: Dictionary, pitch_duration: int) -> void:
-	get_tree().get_root().propagate_call("on_auctioneer_reveal", [artifact, pitch_duration], true)
-
-# Broadcast public artifact (no value) + pitch duration to all peers (bidders)
-func rpc_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
-	_recv_start_pitch.rpc(artifact, pitch_duration)
-
-@rpc("authority", "reliable", "call_local")
-func _recv_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
-	get_tree().get_root().propagate_call("on_start_pitch", [artifact, pitch_duration], true)
-
-# Open bidding — broadcast to all peers
-func rpc_open_bidding() -> void:
-	_recv_open_bidding.rpc()
-
-@rpc("authority", "reliable", "call_local")
-func _recv_open_bidding() -> void:
-	get_tree().get_root().propagate_call("on_open_bidding", [], true)
-
-# Auctioneer requests early open — sent from client to host
 func send_open_early() -> void:
-	if is_host():
-		GameServer.open_bidding_from_peer(1)
-	else:
-		_recv_open_early.rpc_id(1)
-
-@rpc("any_peer", "reliable")
-func _recv_open_early() -> void:
-	if not multiplayer.is_server():
-		return
-	var sender_id: int = multiplayer.get_remote_sender_id()
-	GameServer.open_bidding_from_peer(sender_id)
-
-# Broadcast auction result
-func rpc_show_bid_result(result: Dictionary) -> void:
-	_recv_show_bid_result.rpc(result)
-
-@rpc("authority", "reliable", "call_local")
-func _recv_show_bid_result(result: Dictionary) -> void:
-	get_tree().get_root().propagate_call("on_show_bid_result", [result], true)
-
-# Broadcast chaos event
-func rpc_show_chaos(chaos: Dictionary) -> void:
-	_recv_show_chaos.rpc(chaos)
-
-@rpc("authority", "reliable", "call_local")
-func _recv_show_chaos(chaos: Dictionary) -> void:
-	get_tree().get_root().propagate_call("on_show_chaos", [chaos], true)
-
-# Broadcast final scores
-func rpc_show_final_scores(ranking: Array) -> void:
-	_recv_show_final_scores.rpc(ranking)
-
-@rpc("authority", "reliable", "call_local")
-func _recv_show_final_scores(ranking: Array) -> void:
-	get_tree().get_root().propagate_call("on_show_final_scores", [ranking], true)
-
-# Host drives all scene transitions
-func rpc_advance_scene(scene_path: String) -> void:
-	_recv_advance_scene.rpc(scene_path)
-
-@rpc("authority", "reliable", "call_local")
-func _recv_advance_scene(scene_path: String) -> void:
-	get_tree().change_scene_to_file(scene_path)
-
-func rpc_advance_scene_to_peer(peer_id: int, scene_path: String) -> void:
-	_recv_advance_scene.rpc_id(peer_id, scene_path)
-
-# Sync authoritative player state to a specific client
-func rpc_sync_player_state(target_peer: int, cash: int, artifacts: Array) -> void:
-	_recv_sync_player_state.rpc_id(target_peer, cash, artifacts)
-
-@rpc("authority", "reliable")
-func _recv_sync_player_state(cash: int, artifacts: Array) -> void:
-	GameServer.receive_player_state(cash, artifacts)
-
-# --- Bid submission (client -> host) ---
+	_send({ "type": "open_early" })
 
 func submit_bid(amount: int) -> void:
-	if is_host():
-		bid_received.emit(multiplayer.get_unique_id(), amount)
-	else:
-		_recv_bid.rpc_id(1, amount)
+	_send({ "type": "submit_bid", "amount": amount })
 
-@rpc("any_peer", "reliable")
-func _recv_bid(amount: int) -> void:
-	if not multiplayer.is_server():
+func send_force_resolve() -> void:
+	_send({ "type": "force_resolve" })
+
+func disconnect_from_game() -> void:
+	if _ws != null:
+		_ws.close()
+		_ws = null
+	_pending_send = {}
+	player_names.clear()
+	local_name = ""
+	room_name = ""
+	_is_host = false
+
+func is_host() -> bool:
+	return _is_host
+
+func _connect_and_send(msg: Dictionary) -> void:
+	_ws = WebSocketPeer.new()
+	var err := _ws.connect_to_url(SERVER_URL)
+	if err != OK:
+		_ws = null
+		connection_failed.emit()
 		return
-	var sender_id: int = multiplayer.get_remote_sender_id()
-	bid_received.emit(sender_id, amount)
+	_pending_send = msg
+
+func _process_pending() -> void:
+	if _pending_send.is_empty():
+		return
+	if _ws != null and _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		_ws.send_text(JSON.stringify(_pending_send))
+		_pending_send = {}
+
+func _send(msg: Dictionary) -> void:
+	if _ws == null or _ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	_ws.send_text(JSON.stringify(msg))
+
+func _dispatch(msg: Dictionary) -> void:
+	match msg.get("type", ""):
+		"room_joined":
+			room_name = msg.get("roomName", "")
+			_is_host = msg.get("isHost", false)
+			server_restarted = msg.get("serverRestarted", false)
+			player_names = Array(msg.get("players", []), TYPE_STRING, "", null)
+			room_joined.emit(room_name, _is_host)
+		"player_joined":
+			player_names = Array(msg.get("players", []), TYPE_STRING, "", null)
+			var pname: String = msg.get("playerName", "")
+			player_registered.emit(pname)
+		"player_left":
+			player_names = Array(msg.get("players", []), TYPE_STRING, "", null)
+			var pname: String = msg.get("playerName", "")
+			player_disconnected.emit(pname)
+		"error":
+			error_received.emit(msg.get("code", ""), msg.get("message", ""))
+		"server_disconnected":
+			server_disconnected.emit()
+		"advance_scene":
+			var scene_key: String = msg.get("scene", "")
+			if SCENE_PATHS.has(scene_key):
+				get_tree().change_scene_to_file(SCENE_PATHS[scene_key])
+		"auctioneer_reveal":
+			get_tree().get_root().propagate_call("on_auctioneer_reveal",
+				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
+		"start_pitch":
+			get_tree().get_root().propagate_call("on_start_pitch",
+				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
+			if msg.has("auctioneerName"):
+				get_tree().get_root().propagate_call("on_auctioneer_name",
+					[msg.get("auctioneerName", "")], true)
+		"open_bidding":
+			get_tree().get_root().propagate_call("on_open_bidding", [], true)
+		"bid_result":
+			get_tree().get_root().propagate_call("on_show_bid_result", [msg], true)
+		"chaos":
+			get_tree().get_root().propagate_call("on_show_chaos", [msg], true)
+		"sync_player_state":
+			GameServer.receive_player_state(msg.get("cash", 0), msg.get("artifacts", []))
+		"final_scores":
+			get_tree().get_root().propagate_call("on_show_final_scores",
+				[msg.get("ranking", [])], true)
+		"bid_count":
+			bid_count_updated.emit(msg.get("received", 0), msg.get("total", 0))

@@ -13,8 +13,6 @@ var _open_early_btn: Button
 var _bid_status_label: Label
 var _force_btn: Button
 
-var _expected_bids: int = 0
-var _received_bids: int = 0
 var _pitch_seconds_left: float = 0.0
 var _counting: bool = false
 var _player_vbox: VBoxContainer
@@ -22,7 +20,6 @@ var _dialog_open: bool = false
 
 func _ready() -> void:
 	_build_ui()
-	_expected_bids = NetworkManager.get_peer_ids().size()
 
 func _build_ui() -> void:
 	_UITheme.add_bg(self)
@@ -124,7 +121,7 @@ func _build_ui() -> void:
 		_force_btn.text = "FORCE RESOLVE"
 		_force_btn.pressed.connect(func():
 			AudioManager.play_ui()
-			GameServer.force_resolve())
+			NetworkManager.send_force_resolve())
 		_UITheme.style_ghost_button(_force_btn)
 		_force_btn.visible = false
 		btn_row.add_child(_force_btn)
@@ -156,13 +153,11 @@ func _build_ui() -> void:
 func _refresh_players() -> void:
 	for child in _player_vbox.get_children():
 		child.queue_free()
-	var own_id: int = multiplayer.get_unique_id()
-	for peer_id in NetworkManager.player_names:
-		var name: String = NetworkManager.player_names[peer_id]
+	for name in NetworkManager.player_names:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", _UITheme.GAP)
 		_player_vbox.add_child(row)
-		var is_me: bool = peer_id == own_id
+		var is_me: bool = name == NetworkManager.local_name
 		var name_lbl := Label.new()
 		name_lbl.text = name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -177,7 +172,6 @@ func _refresh_players() -> void:
 
 func on_auctioneer_reveal(artifact: Dictionary, pitch_duration: int) -> void:
 	_refresh_players()
-	_received_bids = 0
 	_name_label.text = artifact.name
 	var cat: String = artifact.get("category", "")
 	_cat_label.text = cat.to_upper()
@@ -194,8 +188,8 @@ func on_auctioneer_reveal(artifact: Dictionary, pitch_duration: int) -> void:
 	_open_early_btn.disabled = false
 	_bid_status_label.visible = false
 
-	if not NetworkManager.bid_received.is_connected(_on_bid_count_update):
-		NetworkManager.bid_received.connect(_on_bid_count_update)
+	if not NetworkManager.bid_count_updated.is_connected(_on_bid_count_update):
+		NetworkManager.bid_count_updated.connect(_on_bid_count_update)
 
 func on_open_bidding() -> void:
 	AudioManager.play_open()
@@ -203,13 +197,12 @@ func on_open_bidding() -> void:
 	_countdown_label.text = "BIDDING OPEN"
 	_open_early_btn.visible = false
 	_bid_status_label.visible = true
-	_bid_status_label.text = "Bids received: 0 / %d" % _expected_bids
+	_bid_status_label.text = "Bids received: 0 / ?"
 	if _force_btn != null:
 		_force_btn.visible = true
 
-func _on_bid_count_update(_peer_id: int, _amount: int) -> void:
-	_received_bids += 1
-	_bid_status_label.text = "Bids received: %d / %d" % [_received_bids, _expected_bids]
+func _on_bid_count_update(received: int, total: int) -> void:
+	_bid_status_label.text = "Bids received: %d / %d" % [received, total]
 
 func _on_open_early_pressed() -> void:
 	AudioManager.play_ui()

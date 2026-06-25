@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+
+  - package-ecosystem: npm
+    directory: /hot-garbage-server
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+
+  - package-ecosystem: terraform
+    directory: /infra
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies

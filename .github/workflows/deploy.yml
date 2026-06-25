@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Integration Tests
+    uses: ./.github/workflows/ci.yml
+
+  deploy-dev:
+    name: Deploy to Dev
+    needs: [ci]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: dev
+      image_tag: ${{ github.sha }}
+
+  deploy-stage:
+    name: Deploy to Stage
+    needs: [deploy-dev]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: stage
+      image_tag: ${{ github.sha }}
+
+  deploy-prod:
+    name: Deploy to Prod
+    needs: [deploy-stage]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: prod
+      image_tag: ${{ github.sha }}

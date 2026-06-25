@@ -33,6 +33,12 @@ static func mono() -> SystemFont:
         _mono.font_names = PackedStringArray(["Courier New", "Courier", "Liberation Mono"])
     return _mono
 
+static func add_center_container(parent: Control) -> CenterContainer:
+    var cc := CenterContainer.new()
+    cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+    parent.add_child(cc)
+    return cc
+
 static func add_bg(node: Control) -> void:
     var bg := ColorRect.new()
     bg.color = BG

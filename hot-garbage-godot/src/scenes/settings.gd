@@ -9,10 +9,9 @@ func _build_ui() -> void:
 	_UITheme.add_bg(self)
 
 	var vbox := VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_CENTER)
 	vbox.custom_minimum_size = Vector2(640, 600)
 	vbox.add_theme_constant_override("separation", _UITheme.GAP * 2)
-	add_child(vbox)
+	_UITheme.add_center_container(self).add_child(vbox)
 
 	var title := Label.new()
 	title.text = "SETTINGS"

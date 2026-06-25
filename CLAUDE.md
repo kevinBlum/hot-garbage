@@ -53,3 +53,24 @@ Wires a `botBid` strategy to `HotGarbage`. Bots bid by **category need** (how ma
 - **True values must never reach non-owner clients.** When Phase 2 (networked) is built, `artifact.value` must only be sent to the auctioneer's client. The engine already enforces this via the `ctx` API.
 - **`engine.js` and `scoring.js` must stay I/O-free.** No `fs`, no `fetch`, no `console` in these modules.
 - **The category never lies.** Category is always public; value is always private until reveal. This is the core game mechanic — don't add anything that leaks value information outside of Appraiser reveals.
+
+## Godot UI centering rule
+
+**Never use `set_anchors_preset(Control.PRESET_CENTER)` with `custom_minimum_size`.** In Godot 4 this places the anchor at (0.5, 0.5) with zero offsets, giving the node a zero-size rect. When `custom_minimum_size` forces expansion the rect grows asymmetrically, landing the content off-center.
+
+Always use `_UITheme.add_center_container(parent)` instead:
+
+```gdscript
+# correct
+var vbox := VBoxContainer.new()
+vbox.custom_minimum_size = Vector2(640, 520)
+_UITheme.add_center_container(self).add_child(vbox)
+
+# wrong — do not do this
+var vbox := VBoxContainer.new()
+vbox.set_anchors_preset(Control.PRESET_CENTER)   # BUG
+vbox.custom_minimum_size = Vector2(640, 520)
+add_child(vbox)
+```
+
+`add_center_container` wraps the boilerplate: creates a `CenterContainer` with `PRESET_FULL_RECT`, adds it to the parent, and returns it. Every full-screen scene that needs a centered content block must go through this helper.
