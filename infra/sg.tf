@@ -27,8 +27,6 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
 
 resource "aws_vpc_security_group_egress_rule" "alb_all" {
   security_group_id = aws_security_group.alb.id
-  from_port         = 0
-  to_port           = 0
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
   description       = "All outbound to ECS tasks"
@@ -54,8 +52,6 @@ resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
 
 resource "aws_vpc_security_group_egress_rule" "ecs_all" {
   security_group_id = aws_security_group.ecs_task.id
-  from_port         = 0
-  to_port           = 0
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
   description       = "Outbound to ECR, DynamoDB, and CloudWatch"
