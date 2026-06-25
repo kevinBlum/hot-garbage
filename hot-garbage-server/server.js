@@ -1,4 +1,5 @@
 'use strict';
+const http = require('http');
 const { WebSocketServer } = require('ws');
 const bcrypt = require('bcrypt');
 const roomStore = require('./room_store');
@@ -169,7 +170,18 @@ function handleDisconnect(roomName, playerName) {
 
 // --- main ---
 
-const wss = new WebSocketServer({ port: PORT });
+const httpServer = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', rooms: rooms.size }));
+    return;
+  }
+  res.writeHead(426, { 'Upgrade': 'Required' });
+  res.end('WebSocket upgrade required');
+});
+
+const wss = new WebSocketServer({ server: httpServer });
+httpServer.listen(PORT);
 
 wss.on('connection', (ws) => {
   const ctx = { playerName: null, roomName: null };
@@ -197,6 +209,6 @@ startup()
   .then(() => console.log(`Hot Garbage server listening on :${PORT}`))
   .catch(err => console.warn('Startup warning (DynamoDB may not be ready):', err.message));
 
-function close() { wss.close(); }
+function close() { wss.close(); httpServer.close(); }
 
 module.exports = { wss, rooms, close };
