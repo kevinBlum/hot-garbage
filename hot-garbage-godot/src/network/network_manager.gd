@@ -8,8 +8,8 @@ signal server_disconnected()
 signal error_received(code: String, message: String)
 signal bid_count_updated(received: int, total: int)
 
-const SERVER_URL := "ws://localhost:3000"
-# const SERVER_URL := "wss://your-domain.awsapprunner.com"
+const SERVER_URL := "ws://hot-garbage-prod-alb-1121244951.us-east-1.elb.amazonaws.com"
+# const SERVER_URL := "ws://localhost:3000"
 
 const SCENE_PATHS := {
 	"lobby":           "res://src/scenes/lobby.tscn",
