@@ -77,7 +77,7 @@ jobs:
         run: echo "url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@ea7ce39ebf175fdb68dbda87bc46a72ad45cfd4b # v2
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
 
       - name: Build and push Docker image
         env:
