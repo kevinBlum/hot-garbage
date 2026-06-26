@@ -94,8 +94,8 @@ class GameSession {
   _openBidding() {
     if (this._biddingOpen) return;
     this._biddingOpen = true;
-    this._send(null, { type: 'open_bidding' });
     const timeout = this._config.bidTimeout ?? 30;
+    this._send(null, { type: 'open_bidding', bidTimeout: timeout });
     if (timeout > 0) {
       setTimeout(() => {
         if (this._biddingOpen && !this._pendingResolve) this._resolveAuction();

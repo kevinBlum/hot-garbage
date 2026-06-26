@@ -4,6 +4,7 @@ const _UITheme = preload("res://src/scenes/ui_theme.gd")
 const LocalPlayerScene = preload("res://src/characters/local_player.tscn")
 const RemotePlayerScene = preload("res://src/characters/remote_player.tscn")
 const ThrowablePropScript = preload("res://src/props/throwable_prop.gd")
+const HUDOverlayScript = preload("res://src/ui/hud_overlay.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -20,6 +21,7 @@ var _bid_counting: bool = false
 
 # CanvasLayer populated in later tasks
 var _canvas: CanvasLayer
+var _hud: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -156,9 +158,23 @@ func _add_spawn_points() -> void:
 		marker.position = SPAWNS[i]
 		add_child(marker)
 
+func _process(delta: float) -> void:
+	if _bid_counting:
+		_bid_time_left -= delta
+		if _bid_time_left < 0.0:
+			_bid_time_left = 0.0
+			_bid_counting = false
+		var secs: int = int(ceil(_bid_time_left))
+		_timer_label.text = "%d" % secs if secs > 0 else ""
+		if _hud:
+			_hud.start_bid_countdown(_bid_time_left)
+
 func _setup_canvas() -> void:
 	_canvas = CanvasLayer.new()
 	add_child(_canvas)
+
+	_hud = HUDOverlayScript.new()
+	_canvas.add_child(_hud)
 
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
@@ -271,6 +287,8 @@ func on_auctioneer_reveal(_artifact: Dictionary, _pitch_duration: int) -> void:
 func on_start_pitch(artifact: Dictionary, _pitch_duration: int, round: int = 1, total_rounds: int = 5) -> void:
 	_current_artifact = artifact
 	_phase_sign_label.text = "PITCH PHASE\nROUND %d/%d" % [round, total_rounds]
+	if _hud:
+		_hud.set_round(round, total_rounds)
 	var cat: String = artifact.get("category", "unknown")
 	var cat_color: Color = _UITheme.cat_color(cat)
 
@@ -291,14 +309,21 @@ func on_auctioneer_name(p_name: String) -> void:
 	for name in _remote_players:
 		_remote_players[name].set_crown_visible(name == p_name)
 
-func on_open_bidding() -> void:
+func on_open_bidding(bid_timeout: float = 30.0) -> void:
 	_phase_sign_label.text = "BIDDING OPEN"
+	_bid_time_left = bid_timeout
+	_bid_counting = true
 	if _auction_item:
 		_auction_item.set_interactable(false)
 		_auction_item.lock_to_pedestal()
 
 func on_show_bid_result(_result: Dictionary) -> void:
 	_phase_sign_label.text = "SOLD"
+	_bid_counting = false
+	_timer_label.text = ""
+	if _hud:
+		_hud.stop_bid_countdown()
+		_hud.update_cash(GameServer.player_cash.get(NetworkManager.local_name, 0))
 
 func on_show_chaos(_chaos: Dictionary) -> void:
 	pass

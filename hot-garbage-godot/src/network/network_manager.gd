@@ -156,7 +156,8 @@ func _dispatch(msg: Dictionary) -> void:
 				float(msg.get("ry", 0.0)),
 				msg.get("anim", "idle"))
 		"open_bidding":
-			get_tree().get_root().propagate_call("on_open_bidding", [], true)
+			get_tree().get_root().propagate_call("on_open_bidding",
+				[msg.get("bidTimeout", 30)], true)
 		"bid_result":
 			get_tree().get_root().propagate_call("on_show_bid_result", [msg], true)
 		"chaos":
