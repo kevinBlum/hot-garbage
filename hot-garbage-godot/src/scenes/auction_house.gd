@@ -11,6 +11,8 @@ const BidRevealScript = preload("res://src/ui/bid_reveal_overlay.gd")
 const ChaosCardScript = preload("res://src/ui/chaos_card.gd")
 const FinalScoresScript = preload("res://src/ui/final_scores_overlay.gd")
 
+const INTERACT_RANGE := 2.5
+
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
 
@@ -282,7 +284,31 @@ func _spawn_local_player() -> void:
 	# Capture mouse for camera look
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+func _check_interact() -> void:
+	if _ability_used or _my_role.is_empty():
+		return
+	var role_id: String = _my_role.get("id", "")
+	var requires_target: bool = _my_role.get("requiresTarget", false)
+
+	if requires_target:
+		var nearest_name: String = ""
+		var nearest_dist: float = INTERACT_RANGE
+		var my_pos: Vector3 = _local_player.position if _local_player else Vector3.ZERO
+		for p_name: String in _remote_players:
+			var dist: float = my_pos.distance_to((_remote_players[p_name] as Node3D).position)
+			if dist < nearest_dist:
+				nearest_dist = dist
+				nearest_name = p_name
+		if nearest_name.is_empty():
+			return
+		NetworkTransport.send_ability_activate(role_id, nearest_name)
+	else:
+		NetworkTransport.send_ability_activate(role_id, "")
+
 func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
+		_check_interact()
+		return
 	if event.is_action_pressed("ui_cancel"):
 		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -333,11 +359,32 @@ func _on_role_assigned(role: Dictionary, objective: Dictionary) -> void:
 		_role_card.show_assigned(role, objective)
 		get_tree().create_timer(5.0).timeout.connect(func(): _role_card._start_fade())
 
+func _on_ability_result(data: Dictionary) -> void:
+	var actor: String = data.get("actorName", "")
+	if actor == NetworkManager.local_name:
+		_ability_used = true
+	var target_node: Node3D = null
+	if actor == NetworkManager.local_name:
+		target_node = _local_player
+	elif _remote_players.has(actor):
+		target_node = _remote_players[actor]
+	if target_node == null:
+		return
+	var lbl := Label3D.new()
+	lbl.text = data.get("abilityType", "").to_upper().replace("_", " ")
+	lbl.pixel_size = 0.05
+	lbl.no_depth_test = true
+	lbl.modulate = Color.html("C9A227")
+	lbl.position = target_node.position + Vector3(0, 2.5, 0)
+	add_child(lbl)
+	get_tree().create_timer(2.5).timeout.connect(func(): lbl.queue_free())
+
 func _connect_player_signals() -> void:
 	NetworkManager.player_registered.connect(_on_player_registered)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 	NetworkManager.player_moved.connect(_on_player_moved)
 	NetworkManager.role_assigned.connect(_on_role_assigned)
+	NetworkManager.ability_result.connect(_on_ability_result)
 	# Spawn RemotePlayers for players already in the room
 	for p_name in NetworkManager.player_names:
 		if p_name != NetworkManager.local_name:
