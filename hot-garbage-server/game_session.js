@@ -5,7 +5,7 @@ const { HotGarbageServer } = require('../server/engine_split');
 const DATA_PATH = path.join(__dirname, '../data/artifacts.json');
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms).unref());
 }
 
 class GameSession {
@@ -107,7 +107,7 @@ class GameSession {
     if (timeout > 0) {
       setTimeout(() => {
         if (this._biddingOpen && !this._pendingResolve) this._resolveAuction();
-      }, timeout * 1000);
+      }, timeout * 1000).unref();
     }
   }
 
