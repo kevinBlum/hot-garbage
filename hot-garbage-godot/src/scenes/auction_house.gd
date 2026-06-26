@@ -33,6 +33,11 @@ var _bid_reveal: Control = null
 var _chaos_card: Control = null
 var _final_scores: Control = null
 
+var _role_card: Control = null
+var _my_role: Dictionary = {}
+var _my_objective: Dictionary = {}
+var _ability_used: bool = false
+
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
 var _leave_dialog_open: bool = false
@@ -227,6 +232,9 @@ func _setup_canvas() -> void:
 	_final_scores = FinalScoresScript.new()
 	_canvas.add_child(_final_scores)
 
+	_role_card = load("res://src/ui/role_card.gd").new()
+	_canvas.add_child(_role_card)
+
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -317,10 +325,19 @@ static func _ensure_input_map() -> void:
 		ev.physical_keycode = ACTIONS[action]
 		InputMap.action_add_event(action, ev)
 
+func _on_role_assigned(role: Dictionary, objective: Dictionary) -> void:
+	_my_role = role
+	_my_objective = objective
+	_ability_used = false
+	if _role_card:
+		_role_card.show_assigned(role, objective)
+		get_tree().create_timer(5.0).timeout.connect(func(): _role_card._start_fade())
+
 func _connect_player_signals() -> void:
 	NetworkManager.player_registered.connect(_on_player_registered)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 	NetworkManager.player_moved.connect(_on_player_moved)
+	NetworkManager.role_assigned.connect(_on_role_assigned)
 	# Spawn RemotePlayers for players already in the room
 	for p_name in NetworkManager.player_names:
 		if p_name != NetworkManager.local_name:
