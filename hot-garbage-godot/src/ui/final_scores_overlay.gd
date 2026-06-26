@@ -2,29 +2,17 @@ extends Control
 
 const _UITheme = preload("res://src/scenes/ui_theme.gd")
 
-var _hud: Control
 var _score_vbox: VBoxContainer
-var _waiting_label: Label
-var _dialog_open: bool = false
 
 func _ready() -> void:
-	_build_ui()
+	visible = false
+	set_anchors_preset(Control.PRESET_FULL_RECT)
 
-func _build_ui() -> void:
 	_UITheme.add_bg(self)
-
-	const HUDScript = preload("res://src/scenes/hud.gd")
-	_hud = HUDScript.new()
-	add_child(_hud)
-
-	var main := Control.new()
-	main.set_anchors_preset(Control.PRESET_FULL_RECT)
-	main.offset_left = _UITheme.HUD_WIDTH
-	add_child(main)
 
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	main.add_child(scroll)
+	add_child(scroll)
 
 	var outer := VBoxContainer.new()
 	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -42,28 +30,38 @@ func _build_ui() -> void:
 	_UITheme.style_label(title, _UITheme.FS_ARTIFACT, _UITheme.GOLD)
 	outer.add_child(title)
 
-	_waiting_label = Label.new()
-	_waiting_label.name = "WaitingLabel"
-	_waiting_label.text = "Calculating scores..."
-	_waiting_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_UITheme.style_label(_waiting_label, _UITheme.FS_BODY, _UITheme.DIM)
-	outer.add_child(_waiting_label)
-
 	_score_vbox = VBoxContainer.new()
 	_score_vbox.add_theme_constant_override("separation", _UITheme.GAP)
 	outer.add_child(_score_vbox)
 
-func on_show_final_scores(ranking: Array) -> void:
-	# Remove waiting label
-	if _waiting_label != null:
-		_waiting_label.queue_free()
-		_waiting_label = null
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", _UITheme.GAP)
+	outer.add_child(btn_row)
 
-	var medals: Array = ["#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"]
+	if NetworkManager.is_host():
+		var play_again := Button.new()
+		play_again.text = "PLAY AGAIN"
+		play_again.pressed.connect(_on_play_again)
+		_UITheme.style_button(play_again)
+		btn_row.add_child(play_again)
+
+	var leave_btn := Button.new()
+	leave_btn.text = "LEAVE"
+	leave_btn.pressed.connect(_on_leave)
+	_UITheme.style_ghost_button(leave_btn)
+	btn_row.add_child(leave_btn)
+
+func show_scores(ranking: Array) -> void:
+	visible = true
+	for child in _score_vbox.get_children():
+		child.queue_free()
+
+	const MEDALS: Array[String] = ["#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"]
 
 	for i in range(ranking.size()):
 		var p: Dictionary = ranking[i]
-		var medal: String = medals[i] if i < medals.size() else "#%d" % (i + 1)
+		var medal: String = MEDALS[i] if i < MEDALS.size() else "#%d" % (i + 1)
 
 		var sep := HSeparator.new()
 		_score_vbox.add_child(sep)
@@ -78,30 +76,21 @@ func on_show_final_scores(ranking: Array) -> void:
 		for cat in breakdown:
 			var b: Dictionary = breakdown[cat]
 			var completed: bool = b.get("completed", false)
-			var set_str: String = ("  SET x%.1f" % b.get("multiplier", 1.0)) if completed else ""
+			var set_str: String = ("  SET ×%.1f" % b.get("multiplier", 1.0)) if completed else ""
 			var line := Label.new()
 			line.text = "  %s: %d items, §%d raw → §%d%s" % [
 				cat.capitalize(), b.get("count", 0), b.get("raw", 0), b.get("scored", 0), set_str
 			]
-			_UITheme.style_label(line, _UITheme.FS_LABEL, _UITheme.cat_color(cat) if completed else _UITheme.DIM)
+			_UITheme.style_label(line, _UITheme.FS_LABEL,
+				_UITheme.cat_color(cat) if completed else _UITheme.DIM)
 			_score_vbox.add_child(line)
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		_show_leave_dialog()
+func _on_play_again() -> void:
+	NetworkTransport.send_delete_room()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
 
-func _show_leave_dialog() -> void:
-	if _dialog_open:
-		return
-	_dialog_open = true
-	var dlg := ConfirmationDialog.new()
-	dlg.title = "Leave"
-	dlg.dialog_text = "Leave game and return to menu?"
-	dlg.confirmed.connect(func():
-		NetworkManager.disconnect_from_game()
-		get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn"))
-	dlg.canceled.connect(func():
-		_dialog_open = false
-		dlg.queue_free())
-	add_child(dlg)
-	dlg.popup_centered()
+func _on_leave() -> void:
+	NetworkManager.disconnect_from_game()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")

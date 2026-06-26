@@ -11,6 +11,8 @@ function sleep(ms) {
 class GameSession {
   constructor(playerNames, config, send) {
     this._playerNames = playerNames;
+    this._config = config;
+    this._engineFactory = config._engineFactory || null;
     this._pitchDuration = (config.pitchDuration ?? 45) * 1000;
     this._chaosChance = config.chaosChance ?? 0.25;
     this._send = send; // fn(playerName|null, msg)
@@ -28,13 +30,16 @@ class GameSession {
 
   start() {
     this.isActive = true;
-    this._engine = new HotGarbageServer({
-      seed: (Math.random() * 0x100000000) >>> 0,
-      playerIds: this._playerNames,
-      chaosChance: this._chaosChance,
-      dataPath: DATA_PATH,
-    });
+    this._engine = this._engineFactory
+      ? this._engineFactory()
+      : new HotGarbageServer({
+          seed: (Math.random() * 0x100000000) >>> 0,
+          playerIds: this._playerNames,
+          chaosChance: this._chaosChance,
+          dataPath: DATA_PATH,
+        });
     this._order = this._engine.getOrder();
+    this._send(null, { type: 'advance_scene', scene: 'auction_house' });
     this._beginTurn();
   }
 
@@ -53,15 +58,11 @@ class GameSession {
     this._currentAuctioneer = this._order[this._turnIdx];
     const bidderCount = this._playerNames.length - 1;
 
-    for (const name of this._playerNames) {
-      this._send(name, {
-        type: 'advance_scene',
-        scene: name === this._currentAuctioneer ? 'auctioneer_view' : 'bidder_view',
-      });
-    }
-
     const publicArtifact = this._engine.startAuction(this._currentAuctioneer);
     const fullArtifact = this._engine.getAuctioneerArtifact();
+
+    // Mask junk category so bidders can't identify it from category alone
+    if (publicArtifact.category === 'junk') publicArtifact.category = 'unknown';
 
     this._send(this._currentAuctioneer, {
       type: 'auctioneer_reveal',
@@ -74,6 +75,8 @@ class GameSession {
       artifact: publicArtifact,
       pitchDuration: this._pitchDuration / 1000,
       auctioneerName: this._currentAuctioneer,
+      round: this._round,
+      totalRounds: this._engine.getRounds(),
     });
 
     await sleep(this._pitchDuration);
@@ -85,7 +88,13 @@ class GameSession {
   _openBidding() {
     if (this._biddingOpen) return;
     this._biddingOpen = true;
-    this._send(null, { type: 'open_bidding' });
+    const timeout = this._config.bidTimeout ?? 30;
+    this._send(null, { type: 'open_bidding', bidTimeout: timeout });
+    if (timeout > 0) {
+      setTimeout(() => {
+        if (this._biddingOpen && !this._pendingResolve) this._resolveAuction();
+      }, timeout * 1000);
+    }
   }
 
   openEarly(playerName) {
@@ -119,8 +128,6 @@ class GameSession {
   async _resolveAuction() {
     if (this._pendingResolve) return;
     this._pendingResolve = true;
-
-    this._send(null, { type: 'advance_scene', scene: 'bid_reveal' });
 
     const result = this._engine.resolveAuction();
     const chaos = this._engine.maybeChaos(result);
@@ -165,7 +172,6 @@ class GameSession {
 
   async _endGame() {
     this.isActive = false;
-    this._send(null, { type: 'advance_scene', scene: 'final_scores' });
     this._send(null, { type: 'final_scores', ranking: this._engine.getFinalScores() });
   }
 }
