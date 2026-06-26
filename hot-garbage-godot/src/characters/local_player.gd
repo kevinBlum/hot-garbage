@@ -19,6 +19,8 @@ var _send_timer: float = 0.0
 var _player_name: String = ""
 var _color: Color = Color.WHITE
 var _scene_root: Node3D
+var _camera_yaw: float = 0.0
+var _camera_pitch: float = deg_to_rad(-20.0)
 
 const PALETTE: PackedStringArray = [
 	"#E74C3C", "#3498DB", "#2ECC71", "#F39C12",
@@ -86,7 +88,6 @@ func _build_nodes() -> void:
 	_camera_arm = SpringArm3D.new()
 	_camera_arm.position = Vector3(0, 1.6, 0)
 	_camera_arm.spring_length = 4.0
-	_camera_arm.rotation_degrees = Vector3(-20, 0, 0)
 	add_child(_camera_arm)
 
 	_camera = Camera3D.new()
@@ -107,13 +108,20 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 
-	# WASD input relative to camera facing
+	# Camera rotation — stored in world-space angles so player body rotation
+	# never feeds back into the camera direction (which caused the spin loop)
+	var mouse_delta := Input.get_last_mouse_velocity() * 0.0002
+	_camera_yaw -= mouse_delta.x
+	_camera_pitch = clamp(_camera_pitch - mouse_delta.y, -1.2, 0.3)
+	_camera_arm.global_rotation = Vector3(_camera_pitch, _camera_yaw, 0.0)
+
+	# WASD input relative to camera yaw only (world-aligned, ignores player facing)
 	var input := Vector2(
 		Input.get_axis("move_left", "move_right"),
 		Input.get_axis("move_forward", "move_back")
 	)
-	var cam_basis := _camera_arm.global_basis
-	var dir := (cam_basis.x * input.x - cam_basis.z * input.y).normalized()
+	var yaw_basis := Basis(Vector3.UP, _camera_yaw)
+	var dir := (yaw_basis.x * input.x - yaw_basis.z * input.y).normalized()
 	dir.y = 0.0
 
 	var speed := SPEED * (SPRINT_MULT if Input.is_action_pressed("sprint") else 1.0)
@@ -128,11 +136,6 @@ func _physics_process(delta: float) -> void:
 	# Jump
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = JUMP_VEL
-
-	# Camera rotation (mouse look — horizontal only for third-person)
-	var mouse_delta := Input.get_last_mouse_velocity() * 0.0002
-	_camera_arm.rotation.y -= mouse_delta.x
-	_camera_arm.rotation.x = clamp(_camera_arm.rotation.x - mouse_delta.y, -1.2, 0.3)
 
 	move_and_slide()
 
