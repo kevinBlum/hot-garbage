@@ -3,6 +3,7 @@ extends Node3D
 const _UITheme = preload("res://src/scenes/ui_theme.gd")
 const LocalPlayerScene = preload("res://src/characters/local_player.tscn")
 const RemotePlayerScene = preload("res://src/characters/remote_player.tscn")
+const ThrowablePropScript = preload("res://src/props/throwable_prop.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -23,9 +24,13 @@ var _canvas: CanvasLayer
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
 
+var _auction_item = null
+var _current_artifact: Dictionary = {}
+
 func _ready() -> void:
 	_ensure_input_map()
 	_build_room()
+	_spawn_props()
 	_setup_canvas()
 	_setup_lighting()
 	_spawn_local_player()
@@ -72,6 +77,39 @@ func _build_room() -> void:
 
 	# Spawn point marker (invisible static body — actual spawn positions)
 	_add_spawn_points()
+
+func _spawn_props() -> void:
+	# Chairs (6) — left side of room
+	var chair_positions: Array[Vector3] = [
+		Vector3(-8, 0, 0), Vector3(-6, 0, 0), Vector3(-4, 0, 0),
+		Vector3(-8, 0, 2), Vector3(-6, 0, 2), Vector3(-4, 0, 2),
+	]
+	for pos in chair_positions:
+		_make_prop(pos, Vector3(0.7, 1.2, 0.7), Color.html("5a3a2a"))
+
+	# Crates (4) — right side
+	var crate_positions: Array[Vector3] = [
+		Vector3(6, 0, 0), Vector3(8, 0, 0),
+		Vector3(6, 0, 2), Vector3(8, 0, 2),
+	]
+	for pos in crate_positions:
+		_make_prop(pos, Vector3(0.9, 0.9, 0.9), Color.html("4a3a1a"))
+
+	# Trinkets (8) — scattered
+	var trinket_positions: Array[Vector3] = [
+		Vector3(-10, 0, -3), Vector3(-10, 0, -1), Vector3(10, 0, -3), Vector3(10, 0, -1),
+		Vector3(-3, 0, -3), Vector3(3, 0, -3), Vector3(-5, 0, 1), Vector3(5, 0, 1),
+	]
+	for pos in trinket_positions:
+		_make_prop(pos, Vector3(0.3, 0.3, 0.3), Color.html("6a6a9a"), ThrowablePropScript.Shape.SPHERE)
+
+func _make_prop(pos: Vector3, size: Vector3, color: Color,
+				shape: int = ThrowablePropScript.Shape.BOX) -> RigidBody3D:
+	var prop: RigidBody3D = RigidBody3D.new()
+	prop.set_script(ThrowablePropScript)
+	add_child(prop)
+	prop.init(pos, size, color, shape)
+	return prop
 
 func _add_box(pos: Vector3, size: Vector3, color: Color) -> void:
 	var body := StaticBody3D.new()
@@ -230,8 +268,21 @@ func _spawn_remote_player(p_name: String) -> void:
 func on_auctioneer_reveal(_artifact: Dictionary, _pitch_duration: int) -> void:
 	pass
 
-func on_start_pitch(_artifact: Dictionary, _pitch_duration: int, _round: int = 1, _total_rounds: int = 5) -> void:
-	_phase_sign_label.text = "PITCH PHASE"
+func on_start_pitch(artifact: Dictionary, _pitch_duration: int, round: int = 1, total_rounds: int = 5) -> void:
+	_current_artifact = artifact
+	_phase_sign_label.text = "PITCH PHASE\nROUND %d/%d" % [round, total_rounds]
+	var cat: String = artifact.get("category", "unknown")
+	var cat_color: Color = _UITheme.cat_color(cat)
+
+	# Spawn or reset auction item on pedestal
+	if _auction_item == null:
+		_auction_item = _make_prop(Vector3(0, 1.2, -1), Vector3(0.4, 0.4, 0.4), cat_color, ThrowablePropScript.Shape.BOX)
+	else:
+		_auction_item.set_color(cat_color)
+		_auction_item.reset_to_home()
+
+	_auction_item.set_interactable(true)
+	_pedestal_label.text = "%s\n[%s]" % [artifact.get("name", ""), cat.to_upper()]
 
 func on_auctioneer_name(p_name: String) -> void:
 	_is_auctioneer = (NetworkManager.local_name == p_name)
@@ -242,6 +293,9 @@ func on_auctioneer_name(p_name: String) -> void:
 
 func on_open_bidding() -> void:
 	_phase_sign_label.text = "BIDDING OPEN"
+	if _auction_item:
+		_auction_item.set_interactable(false)
+		_auction_item.lock_to_pedestal()
 
 func on_show_bid_result(_result: Dictionary) -> void:
 	_phase_sign_label.text = "SOLD"
