@@ -52,14 +52,14 @@ func _ready() -> void:
 func _build_room() -> void:
 	# Floor
 	_add_box(Vector3(0, -0.05, 0), Vector3(30, 0.1, 20), Color.html("2a2a2a"))
-	# Back wall
-	_add_box(Vector3(0, 3, -10), Vector3(30, 6, 0.2), Color.html("1e1e1e"))
+	# Back wall (warm, behind stage)
+	_add_box(Vector3(0, 3, -10), Vector3(30, 6, 0.2), Color.html("1e1814"))
 	# Front wall
-	_add_box(Vector3(0, 3, 10), Vector3(30, 6, 0.2), Color.html("1e1e1e"))
-	# Left wall (scoreboard side)
-	_add_box(Vector3(-15, 3, 0), Vector3(0.2, 6, 20), Color.html("1e1e1e"))
-	# Right wall (phase sign side)
-	_add_box(Vector3(15, 3, 0), Vector3(0.2, 6, 20), Color.html("1e1e1e"))
+	_add_box(Vector3(0, 3, 10), Vector3(30, 6, 0.2), Color.html("1a1a1a"))
+	# Left wall (scoreboard side — very subtle green)
+	_add_box(Vector3(-15, 3, 0), Vector3(0.2, 6, 20), Color.html("161c16"))
+	# Right wall (phase sign side — very subtle cool)
+	_add_box(Vector3(15, 3, 0), Vector3(0.2, 6, 20), Color.html("14161e"))
 	# Ceiling
 	_add_box(Vector3(0, 6.05, 0), Vector3(30, 0.1, 20), Color.html("141414"))
 
@@ -68,25 +68,49 @@ func _build_room() -> void:
 	# Podium on stage
 	_add_box(Vector3(0, 1.05, -8.5), Vector3(1.5, 1.1, 0.8), Color.html("4a3a2a"))
 
-	# Item pedestal (center of room)
-	_add_box(Vector3(0, 0.5, -1), Vector3(1.2, 1.0, 1.2), Color.html("2a3a4a"))
-	# Pedestal display label
-	_pedestal_label = _make_label3d("WAITING...", Vector3(0, 1.15, -1), 0.06)
+	# Item pedestal (two-tier: wide base + narrow top)
+	_add_box(Vector3(0, 0.25, -1), Vector3(1.6, 0.5, 1.6), Color.html("2a3a4a"))
+	_add_box(Vector3(0, 0.75, -1), Vector3(1.0, 0.5, 1.0), Color.html("3a4a5a"))
+	# Pedestal display label — floats above tallest item (y ≈ 2.2 clears a 0.65-tall cone)
+	_pedestal_label = _make_label3d("WAITING...", Vector3(0, 2.2, -1), 0.06)
 
-	# Scoreboard billboard on left wall
-	_add_box(Vector3(-14.8, 3, 0), Vector3(0.1, 3, 8), Color.html("111a11"))
-	_scoreboard_label = _make_label3d("SCOREBOARD", Vector3(-14.6, 4.0, 0), 0.05)
+	# Scoreboard billboard on left wall — protrudes 0.3 units into room
+	_add_box(Vector3(-14.7, 3, 0), Vector3(0.3, 3.4, 8.4), Color.html("0d1a0d"))
+	_scoreboard_label = _make_label3d("SCOREBOARD", Vector3(-14.4, 4.0, 0), 0.05)
 	_scoreboard_label.rotation_degrees = Vector3(0, 90, 0)
 
-	# Phase sign on right wall
-	_add_box(Vector3(14.8, 4.5, -4), Vector3(0.1, 1.5, 5), Color.html("1a1a11"))
-	_phase_sign_label = _make_label3d("NEXT UP", Vector3(14.6, 4.5, -4), 0.07)
+	# Phase sign on right wall — protrudes 0.3 units into room
+	_add_box(Vector3(14.7, 4.5, -4), Vector3(0.3, 1.9, 5.4), Color.html("101826"))
+	_phase_sign_label = _make_label3d("NEXT UP", Vector3(14.4, 4.5, -4), 0.07)
 	_phase_sign_label.rotation_degrees = Vector3(0, -90, 0)
 
-	# Bid timer chalkboard (right wall, lower)
-	_add_box(Vector3(14.8, 2.5, 2), Vector3(0.1, 1.5, 4), Color.html("0a1a0a"))
-	_timer_label = _make_label3d("", Vector3(14.6, 2.5, 2), 0.1)
+	# Bid timer chalkboard (right wall, lower) — protrudes 0.3 units into room
+	_add_box(Vector3(14.7, 2.5, 2), Vector3(0.3, 1.9, 4.4), Color.html("0a1a0a"))
+	_timer_label = _make_label3d("", Vector3(14.4, 2.5, 2), 0.1)
 	_timer_label.rotation_degrees = Vector3(0, -90, 0)
+
+	# Stage front accent strip (gold tint at leading edge of stage, z≈-4)
+	_add_box(Vector3(0, 0.52, -4.0), Vector3(14.0, 0.04, 0.1), Color.html("6a5a3a"))
+
+	# Baseboards along all four walls
+	_add_box(Vector3(0, 0.08, -9.9),  Vector3(29.6, 0.16, 0.1),  Color.html("3a2515"))
+	_add_box(Vector3(0, 0.08, 9.9),   Vector3(29.6, 0.16, 0.1),  Color.html("3a2515"))
+	_add_box(Vector3(-14.9, 0.08, 0), Vector3(0.1,  0.16, 19.6), Color.html("3a2515"))
+	_add_box(Vector3(14.9, 0.08, 0),  Vector3(0.1,  0.16, 19.6), Color.html("3a2515"))
+
+	# Floor carpet disc under pedestal (purely visual — no physics)
+	var carpet := MeshInstance3D.new()
+	var carpet_cyl := CylinderMesh.new()
+	carpet_cyl.top_radius = 3.5
+	carpet_cyl.bottom_radius = 3.5
+	carpet_cyl.height = 0.02
+	carpet.mesh = carpet_cyl
+	var carpet_mat := StandardMaterial3D.new()
+	carpet_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	carpet_mat.albedo_color = Color.html("3a2515")
+	carpet.material_override = carpet_mat
+	carpet.position = Vector3(0, 0.01, -1)
+	add_child(carpet)
 
 	# Spawn point marker (invisible static body — actual spawn positions)
 	_add_spawn_points()
@@ -117,11 +141,12 @@ func _spawn_props() -> void:
 		_make_prop(pos, Vector3(0.3, 0.3, 0.3), Color.html("6a6a9a"), ThrowablePropScript.Shape.SPHERE)
 
 func _make_prop(pos: Vector3, size: Vector3, color: Color,
-				shape: int = ThrowablePropScript.Shape.BOX) -> RigidBody3D:
+				shape: int = ThrowablePropScript.Shape.BOX,
+				p_is_auction_item: bool = false) -> RigidBody3D:
 	var prop: RigidBody3D = RigidBody3D.new()
 	prop.set_script(ThrowablePropScript)
 	add_child(prop)
-	prop.init(pos, size, color, shape)
+	prop.init(pos, size, color, shape, p_is_auction_item)
 	return prop
 
 func _add_box(pos: Vector3, size: Vector3, color: Color) -> void:
@@ -329,6 +354,15 @@ func on_auctioneer_reveal(artifact: Dictionary, _pitch_duration: int) -> void:
 	if _is_auctioneer and _auctioneer_overlay:
 		_auctioneer_overlay.show_reveal(artifact)
 
+func _category_shape(cat: String) -> Dictionary:
+	match cat:
+		"antiquities": return {"shape": ThrowablePropScript.Shape.CONE,    "size": Vector3(0.22, 0.65, 0.22), "pos": Vector3(0, 1.325, -1)}
+		"curios":      return {"shape": ThrowablePropScript.Shape.SPHERE,  "size": Vector3(0.32, 0.32, 0.32), "pos": Vector3(0, 1.32, -1)}
+		"relics":      return {"shape": ThrowablePropScript.Shape.CAPSULE, "size": Vector3(0.18, 0.60, 0.18), "pos": Vector3(0, 1.30, -1)}
+		"forgeries":   return {"shape": ThrowablePropScript.Shape.BOX,     "size": Vector3(0.50, 0.50, 0.50), "pos": Vector3(0, 1.25, -1)}
+		"junk":        return {"shape": ThrowablePropScript.Shape.BOX,     "size": Vector3(0.65, 0.30, 0.45), "pos": Vector3(0, 1.15, -1)}
+		_:             return {"shape": ThrowablePropScript.Shape.SPHERE,  "size": Vector3(0.38, 0.38, 0.38), "pos": Vector3(0, 1.38, -1)}
+
 func on_start_pitch(artifact: Dictionary, _pitch_duration: int, round: int = 1, total_rounds: int = 5) -> void:
 	_current_artifact = artifact
 	_phase_sign_label.text = "PITCH PHASE\nROUND %d/%d" % [round, total_rounds]
@@ -337,12 +371,12 @@ func on_start_pitch(artifact: Dictionary, _pitch_duration: int, round: int = 1, 
 	var cat: String = artifact.get("category", "unknown")
 	var cat_color: Color = _UITheme.cat_color(cat)
 
-	# Spawn or reset auction item on pedestal
-	if _auction_item == null:
-		_auction_item = _make_prop(Vector3(0, 1.2, -1), Vector3(0.4, 0.4, 0.4), cat_color, ThrowablePropScript.Shape.BOX)
-	else:
-		_auction_item.set_color(cat_color)
-		_auction_item.reset_to_home()
+	# Recreate auction item with category-specific shape and position
+	if _auction_item != null:
+		_auction_item.queue_free()
+		_auction_item = null
+	var shape_info := _category_shape(cat)
+	_auction_item = _make_prop(shape_info.pos, shape_info.size, cat_color, shape_info.shape, true)
 
 	_auction_item.set_interactable(true)
 	_pedestal_label.text = "%s\n[%s]" % [artifact.get("name", ""), cat.to_upper()]

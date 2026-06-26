@@ -10,7 +10,7 @@ var _camera_arm: SpringArm3D
 var _camera: Camera3D
 var _mesh: MeshInstance3D
 var _name_label: Label3D
-var _crown_mesh: MeshInstance3D
+var _crown_mesh: Node3D
 var _hand_anchor: Node3D
 var _grab_area: Area3D
 
@@ -62,18 +62,51 @@ func _build_nodes() -> void:
 	_hand_anchor.position = Vector3(0.5, 0.9, -0.7)
 	add_child(_hand_anchor)
 
-	# Crown mesh (hidden; shown when this player is auctioneer)
-	_crown_mesh = MeshInstance3D.new()
-	var crown_box := BoxMesh.new()
-	crown_box.size = Vector3(0.6, 0.2, 0.6)
-	_crown_mesh.mesh = crown_box
-	_crown_mesh.position = Vector3(0, 2.0, 0)
-	var crown_mat := StandardMaterial3D.new()
-	crown_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	crown_mat.albedo_color = Color.html("C9A227")
-	_crown_mesh.material_override = crown_mat
+	# Crown (hidden; shown when this player is auctioneer)
+	_crown_mesh = Node3D.new()
 	_crown_mesh.visible = false
 	add_child(_crown_mesh)
+
+	var gold_mat := StandardMaterial3D.new()
+	gold_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gold_mat.albedo_color = Color.html("C9A227")
+
+	var band := MeshInstance3D.new()
+	var band_cyl := CylinderMesh.new()
+	band_cyl.top_radius = 0.3
+	band_cyl.bottom_radius = 0.3
+	band_cyl.height = 0.1
+	band.mesh = band_cyl
+	band.material_override = gold_mat
+	band.position = Vector3(0, 1.95, 0)
+	_crown_mesh.add_child(band)
+
+	for i in 5:
+		var angle := i * TAU / 5.0
+		var spike_h := 0.28 if i % 2 == 0 else 0.18
+		var spike := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.065
+		cone.height = spike_h
+		spike.mesh = cone
+		spike.material_override = gold_mat
+		spike.position = Vector3(sin(angle) * 0.25, 2.0 + spike_h * 0.5, cos(angle) * 0.25)
+		_crown_mesh.add_child(spike)
+
+	# Eyes (show facing direction)
+	var eye_mat := StandardMaterial3D.new()
+	eye_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	eye_mat.albedo_color = Color.html("1a1a1a")
+	for side in [-1, 1]:
+		var eye := MeshInstance3D.new()
+		var eye_sphere := SphereMesh.new()
+		eye_sphere.radius = 0.07
+		eye_sphere.height = 0.14
+		eye.mesh = eye_sphere
+		eye.material_override = eye_mat
+		eye.position = Vector3(side * 0.15, 1.55, -0.37)
+		add_child(eye)
 
 	# Name label
 	_name_label = Label3D.new()
