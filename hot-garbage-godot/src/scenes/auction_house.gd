@@ -6,6 +6,7 @@ const RemotePlayerScene = preload("res://src/characters/remote_player.tscn")
 const ThrowablePropScript = preload("res://src/props/throwable_prop.gd")
 const HUDOverlayScript = preload("res://src/ui/hud_overlay.gd")
 const AuctioneerOverlayScript = preload("res://src/ui/auctioneer_overlay.gd")
+const BidPanelScript = preload("res://src/ui/bid_panel.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -24,6 +25,7 @@ var _bid_counting: bool = false
 var _canvas: CanvasLayer
 var _hud: Control = null
 var _auctioneer_overlay: Control = null
+var _bid_panel: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -181,6 +183,9 @@ func _setup_canvas() -> void:
 	_auctioneer_overlay = AuctioneerOverlayScript.new()
 	_canvas.add_child(_auctioneer_overlay)
 
+	_bid_panel = BidPanelScript.new()
+	_canvas.add_child(_bid_panel)
+
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -324,6 +329,9 @@ func on_open_bidding(bid_timeout: float = 30.0) -> void:
 	if _auction_item:
 		_auction_item.set_interactable(false)
 		_auction_item.lock_to_pedestal()
+	if _bid_panel and not _is_auctioneer:
+		var own_cash: int = GameServer.player_cash.get(NetworkManager.local_name, 0)
+		_bid_panel.open_for_bidding(_current_artifact, bid_timeout, own_cash)
 
 func on_show_bid_result(_result: Dictionary) -> void:
 	_phase_sign_label.text = "SOLD"
@@ -334,6 +342,8 @@ func on_show_bid_result(_result: Dictionary) -> void:
 		_hud.update_cash(GameServer.player_cash.get(NetworkManager.local_name, 0))
 	if _auctioneer_overlay:
 		_auctioneer_overlay.hide_reveal()
+	if _bid_panel:
+		_bid_panel.close()
 
 func on_show_chaos(_chaos: Dictionary) -> void:
 	pass
