@@ -135,6 +135,14 @@ func _build_ui() -> void:
 	_UITheme.style_ghost_button(settings_btn)
 	right.add_child(settings_btn)
 
+	if OS.is_debug_build():
+		var dev_btn := Button.new()
+		dev_btn.text = "QUICK PLAY (DEV)"
+		dev_btn.pressed.connect(_on_dev_play_pressed)
+		_UITheme.style_ghost_button(dev_btn)
+		dev_btn.add_theme_color_override("font_color", Color.html("E67E22"))
+		right.add_child(dev_btn)
+
 	_status_label = Label.new()
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_UITheme.style_label(_status_label, _UITheme.FS_BODY, _UITheme.DIM)
@@ -200,6 +208,11 @@ func _on_error(code: String, _message: String) -> void:
 
 func _on_connection_failed() -> void:
 	_status_label.text = "Could not connect to server."
+
+func _on_dev_play_pressed() -> void:
+	NetworkManager.local_name = "DevPlayer"
+	NetworkManager.player_names = ["DevPlayer"]
+	get_tree().change_scene_to_file("res://src/scenes/auction_house.tscn")
 
 func _on_settings_pressed() -> void:
 	AudioManager.play_ui()

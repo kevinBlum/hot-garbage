@@ -1,8 +1,6 @@
 extends RigidBody3D
 
-const _UITheme = preload("res://src/scenes/ui_theme.gd")
-
-enum Shape { BOX, CAPSULE, SPHERE }
+enum Shape { BOX, CAPSULE, SPHERE, CONE }
 
 var _home_pos: Vector3 = Vector3.ZERO
 var _is_auction_item: bool = false
@@ -29,6 +27,11 @@ func init(pos: Vector3, size: Vector3, color: Color, shape: int = Shape.BOX, p_i
 			var sphere := SphereShape3D.new()
 			sphere.radius = size.x
 			col.shape = sphere
+		Shape.CONE:
+			var cyl := CylinderShape3D.new()
+			cyl.radius = size.x
+			cyl.height = size.y
+			col.shape = cyl
 	add_child(col)
 
 	var mesh := MeshInstance3D.new()
@@ -47,6 +50,12 @@ func init(pos: Vector3, size: Vector3, color: Color, shape: int = Shape.BOX, p_i
 			sphere_mesh.radius = size.x
 			sphere_mesh.height = size.x * 2
 			mesh.mesh = sphere_mesh
+		Shape.CONE:
+			var cone_mesh := CylinderMesh.new()
+			cone_mesh.top_radius = 0.0
+			cone_mesh.bottom_radius = size.x
+			cone_mesh.height = size.y
+			mesh.mesh = cone_mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = color
