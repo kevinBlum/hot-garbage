@@ -26,6 +26,7 @@ class HotGarbageServer extends HotGarbage {
   }
 
   startAuction(auctioneerId) {
+    this._smashedCurrentItem = false;
     this._currentAuctioneer = auctioneerId;
     this._currentArtifact = this._draw();
     this._submittedBids = {};
@@ -58,6 +59,13 @@ class HotGarbageServer extends HotGarbage {
     const bids = Object.entries(this._submittedBids)
       .map(([id, bid]) => ({ id, bid }))
       .sort((a, b) => b.bid - a.bid);
+
+    if (this._smashedCurrentItem) {
+      seller.cash += this.bankFloor;
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(1.0);
+      this._checkBroke();
+      return { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor, precisionMult: 1.0 };
+    }
 
     let result;
     if (!bids.length || bids[0].bid <= 0) {
@@ -168,6 +176,55 @@ class HotGarbageServer extends HotGarbage {
 
   getBrokeMode() {
     return this._brokeMode;
+  }
+
+  activateAbility(actorId, abilityType, { targetId = null } = {}) {
+    const state = this._roleState[actorId];
+    if (!state) return { success: false, effect: 'Unknown player.' };
+    if (state.abilityUsed) return { success: false, effect: 'Ability already used.' };
+    if (state.role.id !== abilityType) return { success: false, effect: 'Not your role.' };
+
+    let payload = {};
+    switch (abilityType) {
+      case 'thief': {
+        if (!targetId || !this.players[targetId])
+          return { success: false, effect: 'Invalid target.' };
+        if (this._lastAuctionWinner !== targetId)
+          return { success: false, effect: 'Target did not win the last auction.' };
+        const artifact = this._lastAuctionArtifact;
+        const arts = this.players[targetId].artifacts;
+        const idx = arts.findIndex(a => a.id === artifact.id);
+        if (idx === -1) return { success: false, effect: 'Item no longer with target.' };
+        arts.splice(idx, 1);
+        this.players[actorId].artifacts.push(artifact);
+        payload = { stolenItemName: artifact.name, fromPlayer: targetId };
+        break;
+      }
+      case 'smasher': {
+        if (!this._currentArtifact) return { success: false, effect: 'No item on pedestal.' };
+        payload = { smashedItemName: this._currentArtifact.name };
+        this._smashedCurrentItem = true;
+        break;
+      }
+      case 'appraiser': {
+        if (!this._currentArtifact) return { success: false, effect: 'No current item.' };
+        payload = { trueValue: this._currentArtifact.value, itemName: this._currentArtifact.name };
+        break;
+      }
+      case 'philanthropist': {
+        if (!targetId || !this.players[targetId]) return { success: false, effect: 'Invalid target.' };
+        if (this.players[actorId].cash < 150) return { success: false, effect: 'Insufficient funds.' };
+        this.players[actorId].cash -= 150;
+        this.players[targetId].cash += 150;
+        payload = { toPlayer: targetId, amount: 150 };
+        break;
+      }
+      default:
+        return { success: false, effect: `Ability '${abilityType}' not yet implemented.` };
+    }
+
+    state.abilityUsed = true;
+    return { success: true, effect: abilityType, payload };
   }
 }
 
