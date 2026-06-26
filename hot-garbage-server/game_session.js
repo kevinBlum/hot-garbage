@@ -151,6 +151,17 @@ class GameSession {
       this._syncPlayer(name);
     }
 
+    const publicArtifact = { ...result.artifact };
+    delete publicArtifact.value;
+
+    // Send bid result before checking set rush so players see the outcome
+    this._send(null, {
+      type: 'bid_result',
+      winner: result.winner,
+      price: result.price,
+      artifact: publicArtifact,
+    });
+
     const rush = this._engine.checkSetRush();
     if (rush?.triggered) {
       this._send(null, { type: 'set_rush_win', winner: rush.winner, category: rush.category });
@@ -167,16 +178,6 @@ class GameSession {
         this._send(null, { type: 'broke_mode', player: name });
       }
     }
-
-    const publicArtifact = { ...result.artifact };
-    delete publicArtifact.value;
-
-    this._send(null, {
-      type: 'bid_result',
-      winner: result.winner,
-      price: result.price,
-      artifact: publicArtifact,
-    });
 
     if (chaos && chaos.type) {
       this._send(null, { type: 'chaos', ...chaos });
