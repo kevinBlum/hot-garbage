@@ -86,7 +86,7 @@ func show_scores(ranking: Array) -> void:
 			_score_vbox.add_child(line)
 
 func _on_play_again() -> void:
-	NetworkManager._send({ "type": "delete_room" })
+	NetworkTransport.send_delete_room()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
 

@@ -18,3 +18,6 @@ func send_force_resolve() -> void:
 
 func send_start_game(pitch_duration: int) -> void:
 	NetworkManager._send({ "type": "start_game", "pitchDuration": pitch_duration })
+
+func send_delete_room() -> void:
+	NetworkManager._send({ "type": "delete_room" })

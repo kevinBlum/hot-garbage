@@ -3,10 +3,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const GameSession = require('../game_session');
 
-function makeSession(players = ['Alice', 'Bob', 'Carol']) {
+function makeSession(players = ['Alice', 'Bob', 'Carol'], overrides = {}) {
   const log = [];
   const send = (to, msg) => log.push({ to, msg });
-  const session = new GameSession(players, { pitchDuration: 0, chaosChance: 0 }, send);
+  const session = new GameSession(players, { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, ...overrides }, send);
   return { session, log };
 }
 
@@ -129,7 +129,7 @@ test('junk category is masked as unknown in start_pitch', async () => {
   };
   const session = new GameSession(
     ['Alice', 'Bob', 'Carol'],
-    { pitchDuration: 0, chaosChance: 0, _engineFactory: () => mockEngine },
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, _engineFactory: () => mockEngine },
     send
   );
   session.start();
@@ -147,13 +147,30 @@ test('junk category is masked as unknown in start_pitch', async () => {
 });
 
 test('bid timer auto-resolves auction when no bids received', async () => {
-  const { session, log } = makeSession(['Alice', 'Bob', 'Carol']);
-  // Override bidTimeout in config — re-create with low timeout
+  // Use a mock engine with 1 round so the session terminates after one auction
+  const artifact = { id: 1, name: 'Widget', category: 'curios', value: 50, flavor: '' };
+  let resolved = false;
+  const mockEngine = {
+    startAuction: () => ({ ...artifact }),
+    getAuctioneerArtifact: () => ({ ...artifact }),
+    submitBid: () => {},
+    allBidsReceived: () => false,
+    resolveAuction: () => { resolved = true; return { winner: 'BANK', price: 0, artifact: { id: 1 } }; },
+    maybeChaos: () => null,
+    getFinalScores: () => [],
+    getRounds: () => 1,
+    getOrder: () => ['Alice', 'Bob', 'Carol'],
+    players: {
+      Alice: { cash: 1000, artifacts: [] },
+      Bob:   { cash: 1000, artifacts: [] },
+      Carol: { cash: 1000, artifacts: [] },
+    },
+  };
   const log2 = [];
   const send2 = (to, msg) => log2.push({ to, msg });
   const session2 = new GameSession(
     ['Alice', 'Bob', 'Carol'],
-    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0.05 },
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0.05, _engineFactory: () => mockEngine },
     send2
   );
   session2.start();
