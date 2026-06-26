@@ -178,6 +178,29 @@ class HotGarbageServer extends HotGarbage {
     return this._brokeMode;
   }
 
+  getFullFinalScores() {
+    const base = this.getFinalScores();
+    return base.map(entry => {
+      const roleState = this._roleState[entry.id];
+      const playerArts = this.players[entry.id]?.artifacts ?? [];
+      const objectiveComplete = roleState
+        ? playerArts.some(a => a.id === roleState.objectiveItemId)
+        : false;
+      const objectiveBonus = objectiveComplete ? (roleState?.objectiveBonus ?? 0) : 0;
+      return {
+        ...entry,
+        total: entry.total + objectiveBonus,
+        role: roleState?.role ?? null,
+        objectiveItemId: roleState?.objectiveItemId ?? null,
+        objectiveItemName: roleState?.objectiveItemName ?? null,
+        objectiveComplete,
+        objectiveBonus,
+        precisionHistory: this._precisionHistory[entry.id] ?? [],
+        abilityUsed: roleState?.abilityUsed ?? false,
+      };
+    });
+  }
+
   activateAbility(actorId, abilityType, { targetId = null } = {}) {
     const state = this._roleState[actorId];
     if (!state) return { success: false, effect: 'Unknown player.' };

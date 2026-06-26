@@ -187,3 +187,17 @@ test('_checkBroke: does not double-add already-broke player', () => {
   g._checkBroke();
   assert.equal(g.getBrokeMode().size, 1);
 });
+
+test('getFullFinalScores: includes role, objective, and precisionHistory per player', () => {
+  const g = makeGame();
+  g.initRoles();
+  const scores = g.getFullFinalScores();
+  assert.ok(Array.isArray(scores));
+  for (const entry of scores) {
+    assert.ok(entry.id, 'has id');
+    assert.ok(entry.role, 'has role');
+    assert.ok(entry.objectiveItemName, 'has objectiveItemName');
+    assert.equal(typeof entry.objectiveComplete, 'boolean');
+    assert.ok(Array.isArray(entry.precisionHistory));
+  }
+});

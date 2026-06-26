@@ -39,6 +39,20 @@ class GameSession {
           dataPath: DATA_PATH,
         });
     this._order = this._engine.getOrder();
+    this._engine.initRoles();
+    this._notifiedBroke = new Set();
+    for (const name of this._playerNames) {
+      const rs = this._engine.getPlayerRole(name);
+      if (rs) {
+        this._send(name, {
+          type: 'role_assigned',
+          role: rs.role,
+          objectiveItemId: rs.objectiveItemId,
+          objectiveItemName: rs.objectiveItemName,
+          objectiveBonus: rs.objectiveBonus,
+        });
+      }
+    }
     this._send(null, { type: 'advance_scene', scene: 'auction_house' });
     this._beginTurn();
   }
@@ -137,6 +151,23 @@ class GameSession {
       this._syncPlayer(name);
     }
 
+    const rush = this._engine.checkSetRush();
+    if (rush?.triggered) {
+      this._send(null, { type: 'set_rush_win', winner: rush.winner, category: rush.category });
+      this._endGame();
+      return;
+    }
+    if (rush?.oneAway) {
+      this._send(null, { type: 'one_away', player: rush.player, category: rush.category });
+    }
+
+    for (const name of this._engine.getBrokeMode()) {
+      if (!this._notifiedBroke.has(name)) {
+        this._notifiedBroke.add(name);
+        this._send(null, { type: 'broke_mode', player: name });
+      }
+    }
+
     const publicArtifact = { ...result.artifact };
     delete publicArtifact.value;
 
@@ -170,9 +201,26 @@ class GameSession {
     this._send(playerName, { type: 'sync_player_state', cash: p.cash, artifacts: safeArtifacts });
   }
 
+  activateAbility(playerName, abilityType, targetName) {
+    if (!this.isActive) return;
+    const result = this._engine.activateAbility(playerName, abilityType, { targetId: targetName || null });
+    if (result.success) {
+      this._send(null, {
+        type: 'ability_result',
+        actorName: playerName,
+        abilityType,
+        effect: result.effect,
+        payload: result.payload,
+      });
+      const toSync = new Set([playerName]);
+      if (targetName) toSync.add(targetName);
+      for (const name of toSync) this._syncPlayer(name);
+    }
+  }
+
   async _endGame() {
     this.isActive = false;
-    this._send(null, { type: 'final_scores', ranking: this._engine.getFinalScores() });
+    this._send(null, { type: 'final_scores', ranking: this._engine.getFullFinalScores() });
   }
 }
 

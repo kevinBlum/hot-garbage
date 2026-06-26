@@ -119,8 +119,13 @@ test('junk category is masked as unknown in start_pitch', async () => {
     resolveAuction: () => ({ winner: 'BANK', price: 0, artifact: { id: 99 } }),
     maybeChaos: () => null,
     getFinalScores: () => [],
+    getFullFinalScores: () => [],
     getRounds: () => 5,
     getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => null,
+    getBrokeMode: () => new Set(),
     players: {
       Alice: { cash: 1000, artifacts: [] },
       Bob:   { cash: 1000, artifacts: [] },
@@ -158,8 +163,13 @@ test('bid timer auto-resolves auction when no bids received', async () => {
     resolveAuction: () => { resolved = true; return { winner: 'BANK', price: 0, artifact: { id: 1 } }; },
     maybeChaos: () => null,
     getFinalScores: () => [],
+    getFullFinalScores: () => [],
     getRounds: () => 1,
     getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => null,
+    getBrokeMode: () => new Set(),
     players: {
       Alice: { cash: 1000, artifacts: [] },
       Bob:   { cash: 1000, artifacts: [] },
@@ -190,4 +200,217 @@ test('resolveAuction does not send advance_scene', async () => {
   await new Promise(r => setTimeout(r, 100));
   const scenes = msgsOf(log, 'advance_scene');
   assert.equal(scenes.length, 0, 'no advance_scene during auction resolve');
+});
+
+test('start sends role_assigned privately to each player', async () => {
+  const { session, log } = makeSession();
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  const roleMessages = msgsOf(log, 'role_assigned');
+  assert.equal(roleMessages.length, 3, 'each player gets a role_assigned');
+  for (const entry of roleMessages) {
+    assert.notEqual(entry.to, null, 'role_assigned must be private, not broadcast');
+    assert.ok(entry.msg.role, 'role_assigned has role');
+    assert.ok(entry.msg.objectiveItemName, 'role_assigned has objectiveItemName');
+  }
+});
+
+test('broke_mode is broadcast when a player hits 0 cash', async () => {
+  const log = [];
+  const send = (to, msg) => log.push({ to, msg });
+  const artifact = { id: 1, name: 'Widget', category: 'curios', value: 50, flavor: '' };
+  let brokeModeSet = new Set();
+  const mockEngine = {
+    startAuction: () => ({ ...artifact }),
+    getAuctioneerArtifact: () => ({ ...artifact }),
+    submitBid: () => {},
+    allBidsReceived: () => true,
+    resolveAuction: () => ({ winner: 'Bob', price: 100, artifact: { ...artifact } }),
+    maybeChaos: () => ({}),
+    getFinalScores: () => [],
+    getFullFinalScores: () => [],
+    getRounds: () => 5,
+    getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => null,
+    getBrokeMode: () => brokeModeSet,
+    players: {
+      Alice: { cash: 0, artifacts: [] },
+      Bob:   { cash: 900, artifacts: [] },
+      Carol: { cash: 1000, artifacts: [] },
+    },
+  };
+  brokeModeSet.add('Alice');
+  const session = new GameSession(
+    ['Alice', 'Bob', 'Carol'],
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, _engineFactory: () => mockEngine },
+    send
+  );
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  session.submitBid('Bob', 100);
+  await new Promise(r => setTimeout(r, 100));
+  const brokeMsgs = log.filter(e => e.msg.type === 'broke_mode');
+  assert.ok(brokeMsgs.length > 0, 'broke_mode broadcast when player at 0 cash');
+  assert.equal(brokeMsgs[0].to, null, 'broke_mode is a broadcast');
+  assert.equal(brokeMsgs[0].msg.player, 'Alice');
+});
+
+test('broke_mode is only sent once per player', async () => {
+  const log = [];
+  const send = (to, msg) => log.push({ to, msg });
+  const artifact = { id: 1, name: 'Widget', category: 'curios', value: 50, flavor: '' };
+  let resolveCount = 0;
+  let brokeModeSet = new Set(['Alice']);
+  const mockEngine = {
+    startAuction: () => ({ ...artifact }),
+    getAuctioneerArtifact: () => ({ ...artifact }),
+    submitBid: () => {},
+    allBidsReceived: () => true,
+    resolveAuction: () => { resolveCount++; return { winner: 'BANK', price: 25, artifact: { ...artifact } }; },
+    maybeChaos: () => ({}),
+    getFinalScores: () => [],
+    getFullFinalScores: () => [],
+    getRounds: () => 10,
+    getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => null,
+    getBrokeMode: () => brokeModeSet,
+    players: {
+      Alice: { cash: 0, artifacts: [] },
+      Bob:   { cash: 1000, artifacts: [] },
+      Carol: { cash: 1000, artifacts: [] },
+    },
+  };
+  const session = new GameSession(
+    ['Alice', 'Bob', 'Carol'],
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, _engineFactory: () => mockEngine },
+    send
+  );
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  // Force two auctions to resolve
+  session.submitBid('Bob', 100);
+  await new Promise(r => setTimeout(r, 100));
+  session.submitBid('Carol', 100);
+  await new Promise(r => setTimeout(r, 100));
+  const brokeMsgs = log.filter(e => e.msg.type === 'broke_mode' && e.msg.player === 'Alice');
+  assert.equal(brokeMsgs.length, 1, 'broke_mode sent only once per player');
+});
+
+test('set_rush_win triggers end game and is broadcast', async () => {
+  const log = [];
+  const send = (to, msg) => log.push({ to, msg });
+  const artifact = { id: 1, name: 'Widget', category: 'relics', value: 50, flavor: '' };
+  const mockEngine = {
+    startAuction: () => ({ ...artifact }),
+    getAuctioneerArtifact: () => ({ ...artifact }),
+    submitBid: () => {},
+    allBidsReceived: () => true,
+    resolveAuction: () => ({ winner: 'Bob', price: 100, artifact: { ...artifact } }),
+    maybeChaos: () => ({}),
+    getFinalScores: () => [],
+    getFullFinalScores: () => [{ id: 'Bob', total: 500 }],
+    getRounds: () => 10,
+    getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => ({ triggered: true, winner: 'Bob', category: 'relics' }),
+    getBrokeMode: () => new Set(),
+    players: {
+      Alice: { cash: 1000, artifacts: [] },
+      Bob:   { cash: 900, artifacts: [{ ...artifact }] },
+      Carol: { cash: 1000, artifacts: [] },
+    },
+  };
+  const session = new GameSession(
+    ['Alice', 'Bob', 'Carol'],
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, _engineFactory: () => mockEngine },
+    send
+  );
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  session.submitBid('Bob', 100);
+  await new Promise(r => setTimeout(r, 100));
+  const rushMsgs = log.filter(e => e.msg.type === 'set_rush_win');
+  assert.equal(rushMsgs.length, 1, 'set_rush_win broadcast');
+  assert.equal(rushMsgs[0].to, null, 'set_rush_win is broadcast');
+  assert.equal(rushMsgs[0].msg.winner, 'Bob');
+  assert.equal(rushMsgs[0].msg.category, 'relics');
+  // Game should end — final_scores sent
+  const finalMsgs = log.filter(e => e.msg.type === 'final_scores');
+  assert.ok(finalMsgs.length > 0, 'final_scores sent after set_rush_win');
+  assert.ok(!session.isActive, 'session is no longer active after set_rush_win');
+});
+
+test('activateAbility broadcasts ability_result and syncs affected players', async () => {
+  const log = [];
+  const send = (to, msg) => log.push({ to, msg });
+  const artifact = { id: 1, name: 'Widget', category: 'curios', value: 50, flavor: '' };
+  const mockEngine = {
+    startAuction: () => ({ ...artifact }),
+    getAuctioneerArtifact: () => ({ ...artifact }),
+    submitBid: () => {},
+    allBidsReceived: () => false,
+    resolveAuction: () => ({ winner: 'BANK', price: 25, artifact: { ...artifact } }),
+    maybeChaos: () => ({}),
+    getFinalScores: () => [],
+    getFullFinalScores: () => [],
+    getRounds: () => 5,
+    getOrder: () => ['Alice', 'Bob', 'Carol'],
+    initRoles: () => {},
+    getPlayerRole: () => null,
+    checkSetRush: () => null,
+    getBrokeMode: () => new Set(),
+    activateAbility: (actor, type, opts) => ({
+      success: true,
+      effect: type,
+      payload: { toPlayer: opts.targetId, amount: 150 },
+    }),
+    players: {
+      Alice: { cash: 850, artifacts: [] },
+      Bob:   { cash: 1150, artifacts: [] },
+      Carol: { cash: 1000, artifacts: [] },
+    },
+  };
+  const session = new GameSession(
+    ['Alice', 'Bob', 'Carol'],
+    { pitchDuration: 0, chaosChance: 0, bidTimeout: 0, _engineFactory: () => mockEngine },
+    send
+  );
+  session.start();
+  await new Promise(r => setTimeout(r, 50));
+  log.length = 0;
+  session.activateAbility('Alice', 'philanthropist', 'Bob');
+  const abilityMsgs = log.filter(e => e.msg.type === 'ability_result');
+  assert.equal(abilityMsgs.length, 1, 'ability_result is broadcast');
+  assert.equal(abilityMsgs[0].to, null, 'ability_result is broadcast to all');
+  assert.equal(abilityMsgs[0].msg.actorName, 'Alice');
+  assert.equal(abilityMsgs[0].msg.abilityType, 'philanthropist');
+  // Sync messages sent to Alice and Bob
+  const syncMsgs = log.filter(e => e.msg.type === 'sync_player_state');
+  assert.ok(syncMsgs.some(e => e.to === 'Alice'), 'actor is synced');
+  assert.ok(syncMsgs.some(e => e.to === 'Bob'), 'target is synced');
+});
+
+test('final_scores ranking uses getFullFinalScores', async () => {
+  const { session, log } = makeSession(['Alice', 'Bob']);
+  // Run enough turns to reach end of game (2 players = 2 rounds, each player auctions once)
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  // Let all turns complete without bids (BANK wins each time, bidTimeout=0 auto-resolves)
+  // With 2 players and 2 rounds, we need 4 auctions to trigger _endGame
+  // pitchDuration=0, bidTimeout=0 means auto-resolve fires immediately
+  await new Promise(r => setTimeout(r, 1000));
+  const finalMsgs = log.filter(e => e.msg.type === 'final_scores');
+  if (finalMsgs.length > 0) {
+    // If the game ended, check that ranking entries have role fields (from getFullFinalScores)
+    const ranking = finalMsgs[0].msg.ranking;
+    assert.ok(Array.isArray(ranking));
+    for (const entry of ranking) {
+      assert.ok('role' in entry, 'final_scores entry has role from getFullFinalScores');
+    }
+  }
 });

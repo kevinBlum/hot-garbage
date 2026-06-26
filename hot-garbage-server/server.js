@@ -147,6 +147,12 @@ function handleForceResolve(ws, ctx) {
   room.session.forceResolve(ctx.playerName);
 }
 
+function handleAbilityActivate(ws, msg, ctx) {
+  const room = rooms.get(ctx.roomName);
+  if (!room?.session?.isActive) return;
+  room.session.activateAbility(ctx.playerName, msg.abilityType ?? '', msg.targetName ?? null);
+}
+
 async function handleDeleteRoom(ws, ctx) {
   const { roomName, playerName } = ctx;
   const room = rooms.get(roomName);
@@ -208,6 +214,7 @@ wss.on('connection', (ws) => {
       case 'open_early':    return handleOpenEarly(ws, ctx);
       case 'submit_bid':    return handleSubmitBid(ws, msg, ctx);
       case 'force_resolve': return handleForceResolve(ws, ctx);
+      case 'ability_activate': return handleAbilityActivate(ws, msg, ctx);
       case 'delete_room':   return handleDeleteRoom(ws, ctx);
       case 'player_move':
         if (ctx.roomName) {
