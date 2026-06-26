@@ -5,6 +5,7 @@ const LocalPlayerScene = preload("res://src/characters/local_player.tscn")
 const RemotePlayerScene = preload("res://src/characters/remote_player.tscn")
 const ThrowablePropScript = preload("res://src/props/throwable_prop.gd")
 const HUDOverlayScript = preload("res://src/ui/hud_overlay.gd")
+const AuctioneerOverlayScript = preload("res://src/ui/auctioneer_overlay.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -22,6 +23,7 @@ var _bid_counting: bool = false
 # CanvasLayer populated in later tasks
 var _canvas: CanvasLayer
 var _hud: Control = null
+var _auctioneer_overlay: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -176,6 +178,9 @@ func _setup_canvas() -> void:
 	_hud = HUDOverlayScript.new()
 	_canvas.add_child(_hud)
 
+	_auctioneer_overlay = AuctioneerOverlayScript.new()
+	_canvas.add_child(_auctioneer_overlay)
+
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -281,8 +286,9 @@ func _spawn_remote_player(p_name: String) -> void:
 
 # --- Phase message stubs (filled in Tasks 6–11) ---
 
-func on_auctioneer_reveal(_artifact: Dictionary, _pitch_duration: int) -> void:
-	pass
+func on_auctioneer_reveal(artifact: Dictionary, _pitch_duration: int) -> void:
+	if _is_auctioneer and _auctioneer_overlay:
+		_auctioneer_overlay.show_reveal(artifact)
 
 func on_start_pitch(artifact: Dictionary, _pitch_duration: int, round: int = 1, total_rounds: int = 5) -> void:
 	_current_artifact = artifact
@@ -326,6 +332,8 @@ func on_show_bid_result(_result: Dictionary) -> void:
 	if _hud:
 		_hud.stop_bid_countdown()
 		_hud.update_cash(GameServer.player_cash.get(NetworkManager.local_name, 0))
+	if _auctioneer_overlay:
+		_auctioneer_overlay.hide_reveal()
 
 func on_show_chaos(_chaos: Dictionary) -> void:
 	pass
