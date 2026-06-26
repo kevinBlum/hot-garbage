@@ -1,6 +1,7 @@
 extends Node3D
 
 const _UITheme = preload("res://src/scenes/ui_theme.gd")
+const LocalPlayerScene = preload("res://src/characters/local_player.tscn")
 
 # In-world label refs — updated per phase
 var _phase_sign_label: Label3D
@@ -15,7 +16,10 @@ var _bid_counting: bool = false
 # CanvasLayer populated in later tasks
 var _canvas: CanvasLayer
 
+var _local_player: CharacterBody3D = null
+
 func _ready() -> void:
+	_ensure_input_map()
 	_build_room()
 	_setup_canvas()
 	_setup_lighting()
@@ -147,8 +151,43 @@ func _setup_lighting() -> void:
 	add_child(spot)
 
 func _spawn_local_player() -> void:
-	# TODO: filled in Task 4
-	pass
+	_local_player = LocalPlayerScene.instantiate()
+	add_child(_local_player)
+	# Place at spawn index based on player order
+	var idx: int = NetworkManager.player_names.find(NetworkManager.local_name)
+	idx = max(idx, 0)
+	var spawn := get_node_or_null("Spawn%d" % idx)
+	if spawn:
+		_local_player.position = spawn.position
+	else:
+		_local_player.position = Vector3(0, 0, 5)
+	# Capture mouse for camera look
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		else:
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+static func _ensure_input_map() -> void:
+	const ACTIONS: Dictionary = {
+		"move_forward": KEY_W,
+		"move_back":    KEY_S,
+		"move_left":    KEY_A,
+		"move_right":   KEY_D,
+		"jump":         KEY_SPACE,
+		"sprint":       KEY_SHIFT,
+		"interact":     KEY_E,
+	}
+	for action in ACTIONS:
+		if InputMap.has_action(action):
+			continue
+		InputMap.add_action(action)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = ACTIONS[action]
+		InputMap.action_add_event(action, ev)
 
 func _connect_player_signals() -> void:
 	# TODO: filled in Task 5
