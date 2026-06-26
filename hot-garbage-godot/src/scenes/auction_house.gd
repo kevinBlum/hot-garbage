@@ -385,6 +385,9 @@ func _connect_player_signals() -> void:
 	NetworkManager.player_moved.connect(_on_player_moved)
 	NetworkManager.role_assigned.connect(_on_role_assigned)
 	NetworkManager.ability_result.connect(_on_ability_result)
+	NetworkManager.one_away.connect(on_one_away)
+	NetworkManager.set_rush_win.connect(on_set_rush_win)
+	NetworkManager.broke_mode_started.connect(_on_broke_mode_started)
 	# Spawn RemotePlayers for players already in the room
 	for p_name in NetworkManager.player_names:
 		if p_name != NetworkManager.local_name:
@@ -510,3 +513,25 @@ func on_show_final_scores(ranking: Array) -> void:
 	_phase_sign_label.text = "GRAND REVEAL"
 	if _final_scores:
 		_final_scores.show_scores(ranking)
+
+func on_one_away(player: String, category: String) -> void:
+	_scoreboard_label.text = "ONE AWAY\n%s\n[%s]" % [player.to_upper(), category.to_upper()]
+	_scoreboard_label.modulate = Color.html("C9A227")
+
+func on_set_rush_win(winner: String, category: String) -> void:
+	_scoreboard_label.text = "SET RUSH!\n%s WINS\n[%s]" % [winner.to_upper(), category.to_upper()]
+	_scoreboard_label.modulate = Color.html("ff4444")
+
+func _on_broke_mode_started(player: String) -> void:
+	var target: Node3D = null
+	if player == NetworkManager.local_name:
+		target = _local_player
+	elif _remote_players.has(player):
+		target = _remote_players[player]
+	if target:
+		target.modulate = Color(0.45, 0.45, 0.45, 1.0)
+	_scoreboard_label.text = "BROKE!\n%s\nno more bids" % player.to_upper()
+	_scoreboard_label.modulate = Color.html("888888")
+	get_tree().create_timer(3.0).timeout.connect(func():
+		_scoreboard_label.text = "SCOREBOARD"
+		_scoreboard_label.modulate = Color.WHITE)
