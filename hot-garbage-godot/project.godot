@@ -13,6 +13,7 @@ config/features=PackedStringArray("4.3", "Forward Plus")
 [autoload]
 
 NetworkManager="*res://src/network/network_manager.gd"
+NetworkTransport="*res://src/network/network_transport.gd"
 GameServer="*res://src/server/game_server.gd"
 AudioManager="*res://src/audio/audio_manager.gd"
 

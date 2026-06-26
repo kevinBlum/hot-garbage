@@ -185,7 +185,7 @@ func on_auctioneer_reveal(artifact: Dictionary, pitch_duration: int) -> void:
 	if not NetworkManager.bid_count_updated.is_connected(_on_bid_count_update):
 		NetworkManager.bid_count_updated.connect(_on_bid_count_update)
 
-func on_open_bidding() -> void:
+func on_open_bidding(_bid_timeout: float = 30.0) -> void:
 	AudioManager.play_open()
 	_counting = false
 	_countdown_label.text = "BIDDING OPEN"

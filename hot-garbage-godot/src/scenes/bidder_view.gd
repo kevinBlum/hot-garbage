@@ -172,7 +172,7 @@ func _refresh_players() -> void:
 		_UITheme.style_label(cash_lbl, _UITheme.FS_BODY, _UITheme.DIM)
 		row.add_child(cash_lbl)
 
-func on_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
+func on_start_pitch(artifact: Dictionary, pitch_duration: int, _round: int = 1, _total_rounds: int = 5) -> void:
 	_refresh_players()
 	_header_label.text = "PITCH PHASE"
 	_name_label.text = artifact.get("name", "")
@@ -193,7 +193,7 @@ func on_start_pitch(artifact: Dictionary, pitch_duration: int) -> void:
 	_submit_btn.disabled = true
 	_status_label.text = ""
 
-func on_open_bidding() -> void:
+func on_open_bidding(_bid_timeout: float = 30.0) -> void:
 	AudioManager.play_open()
 	_counting = false
 	_phase_label.text = "BIDDING IS OPEN"

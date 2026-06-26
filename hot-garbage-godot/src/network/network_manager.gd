@@ -7,6 +7,7 @@ signal connection_failed()
 signal server_disconnected()
 signal error_received(code: String, message: String)
 signal bid_count_updated(received: int, total: int)
+signal player_moved(player_name: String, x: float, y: float, z: float, ry: float, anim: String)
 
 const SERVER_URL := "ws://hot-garbage-prod-alb-1121244951.us-east-1.elb.amazonaws.com"
 # const SERVER_URL := "ws://localhost:3000"
@@ -142,10 +143,17 @@ func _dispatch(msg: Dictionary) -> void:
 				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
 		"start_pitch":
 			get_tree().get_root().propagate_call("on_start_pitch",
-				[msg.get("artifact", {}), msg.get("pitchDuration", 45)], true)
+				[msg.get("artifact", {}), msg.get("pitchDuration", 45),
+				 msg.get("round", 1), msg.get("totalRounds", 5)], true)
 			if msg.has("auctioneerName"):
 				get_tree().get_root().propagate_call("on_auctioneer_name",
 					[msg.get("auctioneerName", "")], true)
+		"player_move":
+			player_moved.emit(
+				msg.get("playerName", ""),
+				float(msg.get("x", 0.0)), float(msg.get("y", 0.0)), float(msg.get("z", 0.0)),
+				float(msg.get("ry", 0.0)),
+				msg.get("anim", "idle"))
 		"open_bidding":
 			get_tree().get_root().propagate_call("on_open_bidding", [], true)
 		"bid_result":
