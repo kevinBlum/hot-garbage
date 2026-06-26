@@ -108,20 +108,14 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 
-	# Camera rotation — stored in world-space angles so player body rotation
-	# never feeds back into the camera direction (which caused the spin loop)
-	var mouse_delta := Input.get_last_mouse_velocity() * 0.0002
-	_camera_yaw -= mouse_delta.x
-	_camera_pitch = clamp(_camera_pitch - mouse_delta.y, -1.2, 0.3)
-	_camera_arm.global_rotation = Vector3(_camera_pitch, _camera_yaw, 0.0)
-
 	# WASD input relative to camera yaw only (world-aligned, ignores player facing)
 	var input := Vector2(
 		Input.get_axis("move_left", "move_right"),
 		Input.get_axis("move_forward", "move_back")
 	)
 	var yaw_basis := Basis(Vector3.UP, _camera_yaw)
-	var dir := (yaw_basis.x * input.x - yaw_basis.z * input.y).normalized()
+	# yaw_basis.z points in +Z (backward); adding input.y gives -Z when W pressed
+	var dir := (yaw_basis.x * input.x + yaw_basis.z * input.y).normalized()
 	dir.y = 0.0
 
 	var speed := SPEED * (SPRINT_MULT if Input.is_action_pressed("sprint") else 1.0)
@@ -156,6 +150,13 @@ func _physics_process(delta: float) -> void:
 		elif velocity.length() > 0.5:
 			anim = "run"
 		NetworkTransport.send_position(global_position, rotation.y, anim)
+
+	# Camera rotation applied LAST — after rotation.y is set — so the parent's
+	# rotation is already settled when we write global_rotation this frame
+	var mouse_delta := Input.get_last_mouse_velocity() * 0.0002
+	_camera_yaw -= mouse_delta.x
+	_camera_pitch = clamp(_camera_pitch - mouse_delta.y, -1.2, 0.3)
+	_camera_arm.global_rotation = Vector3(_camera_pitch, _camera_yaw, 0.0)
 
 func _try_grab() -> void:
 	var bodies := _grab_area.get_overlapping_bodies()
