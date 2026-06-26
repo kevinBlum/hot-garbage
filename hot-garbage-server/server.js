@@ -209,6 +209,17 @@ wss.on('connection', (ws) => {
       case 'submit_bid':    return handleSubmitBid(ws, msg, ctx);
       case 'force_resolve': return handleForceResolve(ws, ctx);
       case 'delete_room':   return handleDeleteRoom(ws, ctx);
+      case 'player_move':
+        if (ctx.roomName) {
+          broadcastRoom(ctx.roomName, {
+            type: 'player_move',
+            playerName: ctx.playerName,
+            x: msg.x ?? 0, y: msg.y ?? 0, z: msg.z ?? 0,
+            ry: msg.ry ?? 0,
+            anim: msg.anim ?? 'idle',
+          }, ctx.playerName); // exclude sender
+        }
+        return;
     }
   });
 

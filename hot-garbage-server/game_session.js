@@ -11,6 +11,8 @@ function sleep(ms) {
 class GameSession {
   constructor(playerNames, config, send) {
     this._playerNames = playerNames;
+    this._config = config;
+    this._engineFactory = config._engineFactory || null;
     this._pitchDuration = (config.pitchDuration ?? 45) * 1000;
     this._chaosChance = config.chaosChance ?? 0.25;
     this._send = send; // fn(playerName|null, msg)
@@ -28,12 +30,14 @@ class GameSession {
 
   start() {
     this.isActive = true;
-    this._engine = new HotGarbageServer({
-      seed: (Math.random() * 0x100000000) >>> 0,
-      playerIds: this._playerNames,
-      chaosChance: this._chaosChance,
-      dataPath: DATA_PATH,
-    });
+    this._engine = this._engineFactory
+      ? this._engineFactory()
+      : new HotGarbageServer({
+          seed: (Math.random() * 0x100000000) >>> 0,
+          playerIds: this._playerNames,
+          chaosChance: this._chaosChance,
+          dataPath: DATA_PATH,
+        });
     this._order = this._engine.getOrder();
     this._beginTurn();
   }
@@ -63,6 +67,9 @@ class GameSession {
     const publicArtifact = this._engine.startAuction(this._currentAuctioneer);
     const fullArtifact = this._engine.getAuctioneerArtifact();
 
+    // Mask junk category so bidders can't identify it from category alone
+    if (publicArtifact.category === 'junk') publicArtifact.category = 'unknown';
+
     this._send(this._currentAuctioneer, {
       type: 'auctioneer_reveal',
       artifact: fullArtifact,
@@ -74,6 +81,8 @@ class GameSession {
       artifact: publicArtifact,
       pitchDuration: this._pitchDuration / 1000,
       auctioneerName: this._currentAuctioneer,
+      round: this._round,
+      totalRounds: this._engine.getRounds(),
     });
 
     await sleep(this._pitchDuration);
@@ -86,6 +95,12 @@ class GameSession {
     if (this._biddingOpen) return;
     this._biddingOpen = true;
     this._send(null, { type: 'open_bidding' });
+    const timeout = this._config.bidTimeout ?? 30;
+    if (timeout > 0) {
+      setTimeout(() => {
+        if (this._biddingOpen && !this._pendingResolve) this._resolveAuction();
+      }, timeout * 1000);
+    }
   }
 
   openEarly(playerName) {
