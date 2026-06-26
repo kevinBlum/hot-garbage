@@ -1,6 +1,7 @@
 'use strict';
 const { HotGarbage } = require('./engine');
 const { rankPlayers } = require('./scoring');
+const { assignRoles } = require('./roles');
 
 const EVENTS = [
   { id: 'market_crash',      text: 'MARKET CRASH — Forgeries score double this game.' },
@@ -16,6 +17,11 @@ class HotGarbageServer extends HotGarbage {
     this._currentAuctioneer = null;
     this._currentArtifact = null;
     this._submittedBids = {};
+    this._roleState = {};
+    this._precisionHistory = {};
+    this._smashedCurrentItem = false;
+    this._lastAuctionWinner = null;
+    this._lastAuctionArtifact = null;
   }
 
   startAuction(auctioneerId) {
@@ -52,16 +58,27 @@ class HotGarbageServer extends HotGarbage {
       .map(([id, bid]) => ({ id, bid }))
       .sort((a, b) => b.bid - a.bid);
 
+    let result;
     if (!bids.length || bids[0].bid <= 0) {
       seller.cash += this.bankFloor;
-      return { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor };
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(1.0);
+      result = { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor, precisionMult: 1.0 };
+    } else {
+      const top = bids[0];
+      const winner = this.players[top.id];
+      const mult = this._precisionMultiplier(artifact.value, top.bid);
+      const payout = Math.round(top.bid * mult);
+      winner.cash -= top.bid;
+      winner.artifacts.push({ ...artifact });
+      seller.cash += payout;
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(mult);
+      result = { artifact, winner: top.id, price: top.bid, sellerGain: payout, precisionMult: mult };
     }
-    const top = bids[0];
-    const winner = this.players[top.id];
-    winner.cash -= top.bid;
-    winner.artifacts.push({ ...artifact });
-    seller.cash += top.bid;
-    return { artifact, winner: top.id, price: top.bid, sellerGain: top.bid };
+    if (result.winner !== 'BANK') {
+      this._lastAuctionWinner = result.winner;
+      this._lastAuctionArtifact = result.artifact;
+    }
+    return result;
   }
 
   maybeChaos(lastResult) {
@@ -107,6 +124,24 @@ class HotGarbageServer extends HotGarbage {
 
   getRounds() { return this.rounds; }
   getOrder() { return this.order.slice(); }
+
+  initRoles() {
+    this._roleState = assignRoles(this.order, this.deck, this.rng);
+    for (const id of this.order) this._precisionHistory[id] = [];
+  }
+
+  getPlayerRole(playerId) {
+    return this._roleState[playerId] ?? null;
+  }
+
+  _precisionMultiplier(trueValue, bid) {
+    if (trueValue <= 0) return 1.0;
+    const ratio = bid / trueValue;
+    if (ratio >= 1.25) return 1.25;
+    if (ratio >= 0.90) return 1.15;
+    if (ratio >= 0.60) return 1.0;
+    return 0.8;
+  }
 }
 
 module.exports = { HotGarbageServer };

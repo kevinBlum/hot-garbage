@@ -93,3 +93,52 @@ test('getRounds and getOrder', () => {
   assert.equal(g.getRounds(), 3);
   assert.deepEqual(g.getOrder(), ['Alice', 'Bob', 'Carol']);
 });
+
+test('initRoles: assigns a role to every player', () => {
+  const g = makeGame();
+  g.initRoles();
+  for (const id of ['Alice', 'Bob', 'Carol']) {
+    const state = g.getPlayerRole(id);
+    assert.ok(state, `expected role for ${id}`);
+    assert.ok(state.role.id);
+  }
+});
+
+test('initRoles: getPlayerRole returns null for unknown player', () => {
+  const g = makeGame();
+  g.initRoles();
+  assert.equal(g.getPlayerRole('nobody'), null);
+});
+
+test('precision: >=125% bid → 1.25x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 125), 1.25);
+  assert.equal(g._precisionMultiplier(100, 300), 1.25);
+});
+
+test('precision: 90-125% bid → 1.15x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 100), 1.15);
+  assert.equal(g._precisionMultiplier(100, 90), 1.15);
+});
+
+test('precision: 60-90% bid → 1.0x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 80), 1.0);
+  assert.equal(g._precisionMultiplier(100, 60), 1.0);
+});
+
+test('precision: <60% bid → 0.8x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 59), 0.8);
+  assert.equal(g._precisionMultiplier(100, 0), 0.8);
+});
+
+test('resolveAuction includes precisionMult in result', () => {
+  const g = makeGame();
+  g.startAuction('Alice');
+  g.submitBid('Bob', 500);
+  g.submitBid('Carol', 200);
+  const result = g.resolveAuction();
+  assert.ok(typeof result.precisionMult === 'number');
+});
