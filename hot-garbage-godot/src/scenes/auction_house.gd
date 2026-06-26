@@ -9,6 +9,7 @@ const AuctioneerOverlayScript = preload("res://src/ui/auctioneer_overlay.gd")
 const BidPanelScript = preload("res://src/ui/bid_panel.gd")
 const BidRevealScript = preload("res://src/ui/bid_reveal_overlay.gd")
 const ChaosCardScript = preload("res://src/ui/chaos_card.gd")
+const FinalScoresScript = preload("res://src/ui/final_scores_overlay.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -30,6 +31,7 @@ var _auctioneer_overlay: Control = null
 var _bid_panel: Control = null
 var _bid_reveal: Control = null
 var _chaos_card: Control = null
+var _final_scores: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -195,6 +197,9 @@ func _setup_canvas() -> void:
 
 	_chaos_card = ChaosCardScript.new()
 	_canvas.add_child(_chaos_card)
+
+	_final_scores = FinalScoresScript.new()
+	_canvas.add_child(_final_scores)
 
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
@@ -384,5 +389,7 @@ func _burst_winner(winner_name: String) -> void:
 	add_child(particles)
 	get_tree().create_timer(2.0).timeout.connect(func(): particles.queue_free())
 
-func on_show_final_scores(_ranking: Array) -> void:
+func on_show_final_scores(ranking: Array) -> void:
 	_phase_sign_label.text = "GRAND REVEAL"
+	if _final_scores:
+		_final_scores.show_scores(ranking)
