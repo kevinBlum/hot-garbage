@@ -183,7 +183,19 @@ const httpServer = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server: httpServer });
 httpServer.listen(PORT);
 
+// Ping every 30s to keep ALB connections alive and evict dead sockets.
+const keepAlive = setInterval(() => {
+  for (const client of wss.clients) {
+    if (!client.isAlive) { client.terminate(); continue; }
+    client.isAlive = false;
+    client.ping();
+  }
+}, 30_000);
+wss.on('close', () => clearInterval(keepAlive));
+
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   const ctx = { playerName: null, roomName: null };
 
   ws.on('message', async (data) => {

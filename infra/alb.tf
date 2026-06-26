@@ -5,6 +5,11 @@ resource "aws_lb" "server" {
   security_groups    = [aws_security_group.alb.id]
   subnets            = local.public_subnet_ids
 
+  # Default ALB idle timeout is 60s — too short for a lobby where players wait.
+  # Pings fire every 30s so connections stay alive, but a 1h ceiling prevents
+  # the ALB from killing connections during long gaps between game turns.
+  idle_timeout = 3600
+
   # Prevent accidental deletion in prod
   enable_deletion_protection = local.env == "prod"
 
