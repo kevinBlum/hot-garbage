@@ -13,12 +13,8 @@ const SERVER_URL := "ws://hot-garbage-prod-alb-1121244951.us-east-1.elb.amazonaw
 # const SERVER_URL := "ws://localhost:3000"
 
 const SCENE_PATHS := {
-	"lobby":           "res://src/scenes/lobby.tscn",
-	"auction_house":   "res://src/scenes/auction_house.tscn",
-	"auctioneer_view": "res://src/scenes/auctioneer_view.tscn",
-	"bidder_view":     "res://src/scenes/bidder_view.tscn",
-	"bid_reveal":      "res://src/scenes/bid_reveal.tscn",
-	"final_scores":    "res://src/scenes/final_scores.tscn",
+	"lobby":         "res://src/scenes/lobby.tscn",
+	"auction_house": "res://src/scenes/auction_house.tscn",
 }
 
 var player_names: Array[String] = []

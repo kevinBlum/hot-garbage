@@ -39,6 +39,7 @@ class GameSession {
           dataPath: DATA_PATH,
         });
     this._order = this._engine.getOrder();
+    this._send(null, { type: 'advance_scene', scene: 'auction_house' });
     this._beginTurn();
   }
 
@@ -56,13 +57,6 @@ class GameSession {
 
     this._currentAuctioneer = this._order[this._turnIdx];
     const bidderCount = this._playerNames.length - 1;
-
-    for (const name of this._playerNames) {
-      this._send(name, {
-        type: 'advance_scene',
-        scene: name === this._currentAuctioneer ? 'auctioneer_view' : 'bidder_view',
-      });
-    }
 
     const publicArtifact = this._engine.startAuction(this._currentAuctioneer);
     const fullArtifact = this._engine.getAuctioneerArtifact();
@@ -135,8 +129,6 @@ class GameSession {
     if (this._pendingResolve) return;
     this._pendingResolve = true;
 
-    this._send(null, { type: 'advance_scene', scene: 'bid_reveal' });
-
     const result = this._engine.resolveAuction();
     const chaos = this._engine.maybeChaos(result);
 
@@ -180,7 +172,6 @@ class GameSession {
 
   async _endGame() {
     this.isActive = false;
-    this._send(null, { type: 'advance_scene', scene: 'final_scores' });
     this._send(null, { type: 'final_scores', ranking: this._engine.getFinalScores() });
   }
 }

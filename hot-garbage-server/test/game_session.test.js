@@ -14,16 +14,14 @@ function msgsOf(log, type, to = undefined) {
   return log.filter(e => e.msg.type === type && (to === undefined || e.to === to));
 }
 
-test('start sends advance_scene to each player', async () => {
+test('start sends advance_scene auction_house to all players', async () => {
   const { session, log } = makeSession();
   session.start();
   await new Promise(r => setTimeout(r, 100));
   const scenes = msgsOf(log, 'advance_scene');
-  assert.ok(scenes.length >= 3);
-  const auctioneer = scenes.find(e => e.msg.scene === 'auctioneer_view');
-  assert.ok(auctioneer, 'auctioneer should receive auctioneer_view');
-  const bidders = scenes.filter(e => e.msg.scene === 'bidder_view');
-  assert.equal(bidders.length, 2);
+  assert.equal(scenes.length, 1, 'only one advance_scene should be sent');
+  assert.equal(scenes[0].to, null, 'advance_scene should be broadcast');
+  assert.equal(scenes[0].msg.scene, 'auction_house');
 });
 
 test('start sends auctioneer_reveal to auctioneer only', async () => {
@@ -162,4 +160,17 @@ test('bid timer auto-resolves auction when no bids received', async () => {
   await new Promise(r => setTimeout(r, 300));
   const results = log2.filter(e => e.msg.type === 'bid_result');
   assert.ok(results.length > 0, 'auction must auto-resolve via bid timer');
+});
+
+test('resolveAuction does not send advance_scene', async () => {
+  const { session, log } = makeSession(['Alice', 'Bob', 'Carol']);
+  session.start();
+  await new Promise(r => setTimeout(r, 100));
+  log.length = 0; // clear startup messages
+  session.openEarly('Alice'); // trigger bidding
+  await new Promise(r => setTimeout(r, 50));
+  session.forceResolve('Alice');
+  await new Promise(r => setTimeout(r, 100));
+  const scenes = msgsOf(log, 'advance_scene');
+  assert.equal(scenes.length, 0, 'no advance_scene during auction resolve');
 });
