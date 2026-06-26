@@ -7,6 +7,8 @@ const ThrowablePropScript = preload("res://src/props/throwable_prop.gd")
 const HUDOverlayScript = preload("res://src/ui/hud_overlay.gd")
 const AuctioneerOverlayScript = preload("res://src/ui/auctioneer_overlay.gd")
 const BidPanelScript = preload("res://src/ui/bid_panel.gd")
+const BidRevealScript = preload("res://src/ui/bid_reveal_overlay.gd")
+const ChaosCardScript = preload("res://src/ui/chaos_card.gd")
 
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
@@ -26,6 +28,8 @@ var _canvas: CanvasLayer
 var _hud: Control = null
 var _auctioneer_overlay: Control = null
 var _bid_panel: Control = null
+var _bid_reveal: Control = null
+var _chaos_card: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -186,6 +190,12 @@ func _setup_canvas() -> void:
 	_bid_panel = BidPanelScript.new()
 	_canvas.add_child(_bid_panel)
 
+	_bid_reveal = BidRevealScript.new()
+	_canvas.add_child(_bid_reveal)
+
+	_chaos_card = ChaosCardScript.new()
+	_canvas.add_child(_chaos_card)
+
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -333,7 +343,7 @@ func on_open_bidding(bid_timeout: float = 30.0) -> void:
 		var own_cash: int = GameServer.player_cash.get(NetworkManager.local_name, 0)
 		_bid_panel.open_for_bidding(_current_artifact, bid_timeout, own_cash)
 
-func on_show_bid_result(_result: Dictionary) -> void:
+func on_show_bid_result(result: Dictionary) -> void:
 	_phase_sign_label.text = "SOLD"
 	_bid_counting = false
 	_timer_label.text = ""
@@ -344,9 +354,35 @@ func on_show_bid_result(_result: Dictionary) -> void:
 		_auctioneer_overlay.hide_reveal()
 	if _bid_panel:
 		_bid_panel.close()
+	if _bid_reveal:
+		_bid_reveal.show_result(result)
+	_burst_winner(result.get("winner", ""))
 
-func on_show_chaos(_chaos: Dictionary) -> void:
-	pass
+func on_show_chaos(chaos: Dictionary) -> void:
+	if chaos.is_empty():
+		return
+	if _chaos_card:
+		_chaos_card.show_chaos(chaos)
+
+func _burst_winner(winner_name: String) -> void:
+	var target: Node3D = null
+	if winner_name == NetworkManager.local_name:
+		target = _local_player
+	elif _remote_players.has(winner_name):
+		target = _remote_players[winner_name]
+	if target == null:
+		return
+	var particles := CPUParticles3D.new()
+	particles.emitting = true
+	particles.one_shot = true
+	particles.amount = 40
+	particles.lifetime = 1.5
+	particles.initial_velocity_min = 3.0
+	particles.initial_velocity_max = 6.0
+	particles.color = Color.html("C9A227")
+	particles.position = target.position + Vector3(0, 1.5, 0)
+	add_child(particles)
+	get_tree().create_timer(2.0).timeout.connect(func(): particles.queue_free())
 
 func on_show_final_scores(_ranking: Array) -> void:
 	_phase_sign_label.text = "GRAND REVEAL"
