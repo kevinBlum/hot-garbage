@@ -11,6 +11,8 @@ const BidRevealScript = preload("res://src/ui/bid_reveal_overlay.gd")
 const ChaosCardScript = preload("res://src/ui/chaos_card.gd")
 const FinalScoresScript = preload("res://src/ui/final_scores_overlay.gd")
 
+const INTERACT_RANGE := 2.5
+
 # player_name → RemotePlayer node
 var _remote_players: Dictionary = {}
 
@@ -32,6 +34,11 @@ var _bid_panel: Control = null
 var _bid_reveal: Control = null
 var _chaos_card: Control = null
 var _final_scores: Control = null
+
+var _role_card: Control = null
+var _my_role: Dictionary = {}
+var _my_objective: Dictionary = {}
+var _ability_used: bool = false
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
@@ -227,6 +234,9 @@ func _setup_canvas() -> void:
 	_final_scores = FinalScoresScript.new()
 	_canvas.add_child(_final_scores)
 
+	_role_card = load("res://src/ui/role_card.gd").new()
+	_canvas.add_child(_role_card)
+
 func _setup_lighting() -> void:
 	var env_node := WorldEnvironment.new()
 	var env := Environment.new()
@@ -274,7 +284,31 @@ func _spawn_local_player() -> void:
 	# Capture mouse for camera look
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+func _check_interact() -> void:
+	if _ability_used or _my_role.is_empty():
+		return
+	var role_id: String = _my_role.get("id", "")
+	var requires_target: bool = _my_role.get("requiresTarget", false)
+
+	if requires_target:
+		var nearest_name: String = ""
+		var nearest_dist: float = INTERACT_RANGE
+		var my_pos: Vector3 = _local_player.position if _local_player else Vector3.ZERO
+		for p_name: String in _remote_players:
+			var dist: float = my_pos.distance_to((_remote_players[p_name] as Node3D).position)
+			if dist < nearest_dist:
+				nearest_dist = dist
+				nearest_name = p_name
+		if nearest_name.is_empty():
+			return
+		NetworkTransport.send_ability_activate(role_id, nearest_name)
+	else:
+		NetworkTransport.send_ability_activate(role_id, "")
+
 func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
+		_check_interact()
+		return
 	if event.is_action_pressed("ui_cancel"):
 		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -317,10 +351,43 @@ static func _ensure_input_map() -> void:
 		ev.physical_keycode = ACTIONS[action]
 		InputMap.action_add_event(action, ev)
 
+func _on_role_assigned(role: Dictionary, objective: Dictionary) -> void:
+	_my_role = role
+	_my_objective = objective
+	_ability_used = false
+	if _role_card:
+		_role_card.show_assigned(role, objective)
+		get_tree().create_timer(5.0).timeout.connect(func(): _role_card._start_fade())
+
+func _on_ability_result(data: Dictionary) -> void:
+	var actor: String = data.get("actorName", "")
+	if actor == NetworkManager.local_name:
+		_ability_used = true
+	var target_node: Node3D = null
+	if actor == NetworkManager.local_name:
+		target_node = _local_player
+	elif _remote_players.has(actor):
+		target_node = _remote_players[actor]
+	if target_node == null:
+		return
+	var lbl := Label3D.new()
+	lbl.text = data.get("abilityType", "").to_upper().replace("_", " ")
+	lbl.pixel_size = 0.05
+	lbl.no_depth_test = true
+	lbl.modulate = Color.html("C9A227")
+	lbl.position = target_node.position + Vector3(0, 2.5, 0)
+	add_child(lbl)
+	get_tree().create_timer(2.5).timeout.connect(func(): lbl.queue_free())
+
 func _connect_player_signals() -> void:
 	NetworkManager.player_registered.connect(_on_player_registered)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 	NetworkManager.player_moved.connect(_on_player_moved)
+	NetworkManager.role_assigned.connect(_on_role_assigned)
+	NetworkManager.ability_result.connect(_on_ability_result)
+	NetworkManager.one_away.connect(on_one_away)
+	NetworkManager.set_rush_win.connect(on_set_rush_win)
+	NetworkManager.broke_mode_started.connect(_on_broke_mode_started)
 	# Spawn RemotePlayers for players already in the room
 	for p_name in NetworkManager.player_names:
 		if p_name != NetworkManager.local_name:
@@ -446,3 +513,25 @@ func on_show_final_scores(ranking: Array) -> void:
 	_phase_sign_label.text = "GRAND REVEAL"
 	if _final_scores:
 		_final_scores.show_scores(ranking)
+
+func on_one_away(player: String, category: String) -> void:
+	_scoreboard_label.text = "ONE AWAY\n%s\n[%s]" % [player.to_upper(), category.to_upper()]
+	_scoreboard_label.modulate = Color.html("C9A227")
+
+func on_set_rush_win(winner: String, category: String) -> void:
+	_scoreboard_label.text = "SET RUSH!\n%s WINS\n[%s]" % [winner.to_upper(), category.to_upper()]
+	_scoreboard_label.modulate = Color.html("ff4444")
+
+func _on_broke_mode_started(player: String) -> void:
+	var target: Node3D = null
+	if player == NetworkManager.local_name:
+		target = _local_player
+	elif _remote_players.has(player):
+		target = _remote_players[player]
+	if target:
+		target.modulate = Color(0.45, 0.45, 0.45, 1.0)
+	_scoreboard_label.text = "BROKE!\n%s\nno more bids" % player.to_upper()
+	_scoreboard_label.modulate = Color.html("888888")
+	get_tree().create_timer(3.0).timeout.connect(func():
+		_scoreboard_label.text = "SCOREBOARD"
+		_scoreboard_label.modulate = Color.WHITE)

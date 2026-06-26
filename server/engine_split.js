@@ -1,6 +1,7 @@
 'use strict';
 const { HotGarbage } = require('./engine');
 const { rankPlayers } = require('./scoring');
+const { assignRoles } = require('./roles');
 
 const EVENTS = [
   { id: 'market_crash',      text: 'MARKET CRASH — Forgeries score double this game.' },
@@ -16,9 +17,16 @@ class HotGarbageServer extends HotGarbage {
     this._currentAuctioneer = null;
     this._currentArtifact = null;
     this._submittedBids = {};
+    this._roleState = {};
+    this._precisionHistory = {};
+    this._smashedCurrentItem = false;
+    this._lastAuctionWinner = null;
+    this._lastAuctionArtifact = null;
+    this._brokeMode = new Set();
   }
 
   startAuction(auctioneerId) {
+    this._smashedCurrentItem = false;
     this._currentAuctioneer = auctioneerId;
     this._currentArtifact = this._draw();
     this._submittedBids = {};
@@ -52,16 +60,35 @@ class HotGarbageServer extends HotGarbage {
       .map(([id, bid]) => ({ id, bid }))
       .sort((a, b) => b.bid - a.bid);
 
+    if (this._smashedCurrentItem) {
+      seller.cash += this.bankFloor;
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(1.0);
+      this._checkBroke();
+      return { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor, precisionMult: 1.0 };
+    }
+
+    let result;
     if (!bids.length || bids[0].bid <= 0) {
       seller.cash += this.bankFloor;
-      return { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor };
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(1.0);
+      result = { artifact, winner: 'BANK', price: this.bankFloor, sellerGain: this.bankFloor, precisionMult: 1.0 };
+    } else {
+      const top = bids[0];
+      const winner = this.players[top.id];
+      const mult = this._precisionMultiplier(artifact.value, top.bid);
+      const payout = Math.round(top.bid * mult);
+      winner.cash -= top.bid;
+      winner.artifacts.push({ ...artifact });
+      seller.cash += payout;
+      (this._precisionHistory[this._currentAuctioneer] ||= []).push(mult);
+      result = { artifact, winner: top.id, price: top.bid, sellerGain: payout, precisionMult: mult };
     }
-    const top = bids[0];
-    const winner = this.players[top.id];
-    winner.cash -= top.bid;
-    winner.artifacts.push({ ...artifact });
-    seller.cash += top.bid;
-    return { artifact, winner: top.id, price: top.bid, sellerGain: top.bid };
+    if (result.winner !== 'BANK') {
+      this._lastAuctionWinner = result.winner;
+      this._lastAuctionArtifact = result.artifact;
+    }
+    this._checkBroke();
+    return result;
   }
 
   maybeChaos(lastResult) {
@@ -107,6 +134,121 @@ class HotGarbageServer extends HotGarbage {
 
   getRounds() { return this.rounds; }
   getOrder() { return this.order.slice(); }
+
+  initRoles() {
+    this._roleState = assignRoles(this.order, this.deck, this.rng);
+    for (const id of this.order) this._precisionHistory[id] = [];
+  }
+
+  getPlayerRole(playerId) {
+    return this._roleState[playerId] ?? null;
+  }
+
+  _precisionMultiplier(trueValue, bid) {
+    if (trueValue <= 0) return 1.0;
+    const ratio = bid / trueValue;
+    if (ratio >= 1.25) return 1.25;
+    if (ratio >= 0.90) return 1.15;
+    if (ratio >= 0.60) return 1.0;
+    return 0.8;
+  }
+
+  checkSetRush() {
+    let oneAway = null;
+    for (const id of this.order) {
+      const byCat = {};
+      for (const a of this.players[id].artifacts) {
+        byCat[a.category] = (byCat[a.category] || 0) + 1;
+      }
+      for (const [cat, count] of Object.entries(byCat)) {
+        if (count >= 3) return { triggered: true, winner: id, category: cat };
+        if (count === 2 && !oneAway) oneAway = { oneAway: true, player: id, category: cat };
+      }
+    }
+    return oneAway;
+  }
+
+  _checkBroke() {
+    for (const id of this.order) {
+      if (this.players[id].cash <= 0) this._brokeMode.add(id);
+    }
+  }
+
+  getBrokeMode() {
+    return this._brokeMode;
+  }
+
+  getFullFinalScores() {
+    const base = this.getFinalScores();
+    return base.map(entry => {
+      const roleState = this._roleState[entry.id];
+      const playerArts = this.players[entry.id]?.artifacts ?? [];
+      const objectiveComplete = roleState
+        ? playerArts.some(a => a.id === roleState.objectiveItemId)
+        : false;
+      const objectiveBonus = objectiveComplete ? (roleState?.objectiveBonus ?? 0) : 0;
+      return {
+        ...entry,
+        total: entry.total + objectiveBonus,
+        role: roleState?.role ?? null,
+        objectiveItemId: roleState?.objectiveItemId ?? null,
+        objectiveItemName: roleState?.objectiveItemName ?? null,
+        objectiveComplete,
+        objectiveBonus,
+        precisionHistory: this._precisionHistory[entry.id] ?? [],
+        abilityUsed: roleState?.abilityUsed ?? false,
+      };
+    });
+  }
+
+  activateAbility(actorId, abilityType, { targetId = null } = {}) {
+    const state = this._roleState[actorId];
+    if (!state) return { success: false, effect: 'Unknown player.' };
+    if (state.abilityUsed) return { success: false, effect: 'Ability already used.' };
+    if (state.role.id !== abilityType) return { success: false, effect: 'Not your role.' };
+
+    let payload = {};
+    switch (abilityType) {
+      case 'thief': {
+        if (!targetId || !this.players[targetId])
+          return { success: false, effect: 'Invalid target.' };
+        if (this._lastAuctionWinner !== targetId)
+          return { success: false, effect: 'Target did not win the last auction.' };
+        const artifact = this._lastAuctionArtifact;
+        const arts = this.players[targetId].artifacts;
+        const idx = arts.findIndex(a => a.id === artifact.id);
+        if (idx === -1) return { success: false, effect: 'Item no longer with target.' };
+        arts.splice(idx, 1);
+        this.players[actorId].artifacts.push(artifact);
+        payload = { stolenItemName: artifact.name, fromPlayer: targetId };
+        break;
+      }
+      case 'smasher': {
+        if (!this._currentArtifact) return { success: false, effect: 'No item on pedestal.' };
+        payload = { smashedItemName: this._currentArtifact.name };
+        this._smashedCurrentItem = true;
+        break;
+      }
+      case 'appraiser': {
+        if (!this._currentArtifact) return { success: false, effect: 'No current item.' };
+        payload = { trueValue: this._currentArtifact.value, itemName: this._currentArtifact.name };
+        break;
+      }
+      case 'philanthropist': {
+        if (!targetId || !this.players[targetId]) return { success: false, effect: 'Invalid target.' };
+        if (this.players[actorId].cash < 150) return { success: false, effect: 'Insufficient funds.' };
+        this.players[actorId].cash -= 150;
+        this.players[targetId].cash += 150;
+        payload = { toPlayer: targetId, amount: 150 };
+        break;
+      }
+      default:
+        return { success: false, effect: `Ability '${abilityType}' not yet implemented.` };
+    }
+
+    state.abilityUsed = true;
+    return { success: true, effect: abilityType, payload };
+  }
 }
 
 module.exports = { HotGarbageServer };

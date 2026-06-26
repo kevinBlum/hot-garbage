@@ -93,3 +93,111 @@ test('getRounds and getOrder', () => {
   assert.equal(g.getRounds(), 3);
   assert.deepEqual(g.getOrder(), ['Alice', 'Bob', 'Carol']);
 });
+
+test('initRoles: assigns a role to every player', () => {
+  const g = makeGame();
+  g.initRoles();
+  for (const id of ['Alice', 'Bob', 'Carol']) {
+    const state = g.getPlayerRole(id);
+    assert.ok(state, `expected role for ${id}`);
+    assert.ok(state.role.id);
+  }
+});
+
+test('initRoles: getPlayerRole returns null for unknown player', () => {
+  const g = makeGame();
+  g.initRoles();
+  assert.equal(g.getPlayerRole('nobody'), null);
+});
+
+test('precision: >=125% bid → 1.25x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 125), 1.25);
+  assert.equal(g._precisionMultiplier(100, 300), 1.25);
+});
+
+test('precision: 90-125% bid → 1.15x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 100), 1.15);
+  assert.equal(g._precisionMultiplier(100, 90), 1.15);
+});
+
+test('precision: 60-90% bid → 1.0x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 80), 1.0);
+  assert.equal(g._precisionMultiplier(100, 60), 1.0);
+});
+
+test('precision: <60% bid → 0.8x', () => {
+  const g = makeGame();
+  assert.equal(g._precisionMultiplier(100, 59), 0.8);
+  assert.equal(g._precisionMultiplier(100, 0), 0.8);
+});
+
+test('resolveAuction includes precisionMult in result', () => {
+  const g = makeGame();
+  g.startAuction('Alice');
+  g.submitBid('Bob', 500);
+  g.submitBid('Carol', 200);
+  const result = g.resolveAuction();
+  assert.ok(typeof result.precisionMult === 'number');
+});
+
+test('checkSetRush: null when no player near a set', () => {
+  const g = makeGame();
+  assert.equal(g.checkSetRush(), null);
+});
+
+test('checkSetRush: oneAway when player has 2 of same category', () => {
+  const g = makeGame();
+  g.players['Alice'].artifacts = [
+    { id: '1', category: 'relics', value: 100 },
+    { id: '2', category: 'relics', value: 100 },
+  ];
+  const r = g.checkSetRush();
+  assert.ok(r?.oneAway);
+  assert.equal(r.player, 'Alice');
+  assert.equal(r.category, 'relics');
+});
+
+test('checkSetRush: triggered when player has 3 of same category', () => {
+  const g = makeGame();
+  g.players['Alice'].artifacts = [
+    { id: '1', category: 'relics', value: 100 },
+    { id: '2', category: 'relics', value: 100 },
+    { id: '3', category: 'relics', value: 100 },
+  ];
+  const r = g.checkSetRush();
+  assert.ok(r?.triggered);
+  assert.equal(r.winner, 'Alice');
+});
+
+test('_checkBroke: marks player at 0 cash', () => {
+  const g = makeGame();
+  g.players['Bob'].cash = 0;
+  g._checkBroke();
+  assert.ok(g.getBrokeMode().has('Bob'));
+  assert.ok(!g.getBrokeMode().has('Alice'));
+});
+
+test('_checkBroke: does not double-add already-broke player', () => {
+  const g = makeGame();
+  g.players['Bob'].cash = 0;
+  g._checkBroke();
+  g._checkBroke();
+  assert.equal(g.getBrokeMode().size, 1);
+});
+
+test('getFullFinalScores: includes role, objective, and precisionHistory per player', () => {
+  const g = makeGame();
+  g.initRoles();
+  const scores = g.getFullFinalScores();
+  assert.ok(Array.isArray(scores));
+  for (const entry of scores) {
+    assert.ok(entry.id, 'has id');
+    assert.ok(entry.role, 'has role');
+    assert.ok(entry.objectiveItemName, 'has objectiveItemName');
+    assert.equal(typeof entry.objectiveComplete, 'boolean');
+    assert.ok(Array.isArray(entry.precisionHistory));
+  }
+});

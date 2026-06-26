@@ -85,6 +85,36 @@ func show_scores(ranking: Array) -> void:
 				_UITheme.cat_color(cat) if completed else _UITheme.DIM)
 			_score_vbox.add_child(line)
 
+		# Role + objective reveal
+		var role_data: Dictionary = p.get("role", {})
+		if not role_data.is_empty():
+			var role_lbl := Label.new()
+			var used_str: String = " (used)" if p.get("abilityUsed", false) else " (never used)"
+			role_lbl.text = "  ROLE: %s%s" % [role_data.get("name", "?"), used_str]
+			_UITheme.style_label(role_lbl, _UITheme.FS_LABEL, _UITheme.GOLD)
+			_score_vbox.add_child(role_lbl)
+
+			var obj_complete: bool = p.get("objectiveComplete", false)
+			var obj_bonus: int = p.get("objectiveBonus", 0)
+			var obj_result: String = ("COMPLETE +§%d" % obj_bonus) if obj_complete else "INCOMPLETE"
+			var obj_lbl := Label.new()
+			obj_lbl.text = "  OBJECTIVE: \"%s\" — %s" % [p.get("objectiveItemName", "?"), obj_result]
+			_UITheme.style_label(obj_lbl, _UITheme.FS_LABEL,
+				_UITheme.GOLD if obj_complete else _UITheme.DIM)
+			_score_vbox.add_child(obj_lbl)
+
+		# Auctioneer precision breakdown
+		var precision: Array = p.get("precisionHistory", [])
+		if not precision.is_empty():
+			var avg: float = 0.0
+			for m: float in precision:
+				avg += m
+			avg /= float(precision.size())
+			var prec_lbl := Label.new()
+			prec_lbl.text = "  AUCTIONEER: avg %.2f× precision over %d round(s)" % [avg, precision.size()]
+			_UITheme.style_label(prec_lbl, _UITheme.FS_LABEL, _UITheme.DIM)
+			_score_vbox.add_child(prec_lbl)
+
 func _on_play_again() -> void:
 	NetworkTransport.send_delete_room()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
