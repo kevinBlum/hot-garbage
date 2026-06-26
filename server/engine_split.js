@@ -22,6 +22,7 @@ class HotGarbageServer extends HotGarbage {
     this._smashedCurrentItem = false;
     this._lastAuctionWinner = null;
     this._lastAuctionArtifact = null;
+    this._brokeMode = new Set();
   }
 
   startAuction(auctioneerId) {
@@ -78,6 +79,7 @@ class HotGarbageServer extends HotGarbage {
       this._lastAuctionWinner = result.winner;
       this._lastAuctionArtifact = result.artifact;
     }
+    this._checkBroke();
     return result;
   }
 
@@ -141,6 +143,31 @@ class HotGarbageServer extends HotGarbage {
     if (ratio >= 0.90) return 1.15;
     if (ratio >= 0.60) return 1.0;
     return 0.8;
+  }
+
+  checkSetRush() {
+    let oneAway = null;
+    for (const id of this.order) {
+      const byCat = {};
+      for (const a of this.players[id].artifacts) {
+        byCat[a.category] = (byCat[a.category] || 0) + 1;
+      }
+      for (const [cat, count] of Object.entries(byCat)) {
+        if (count >= 3) return { triggered: true, winner: id, category: cat };
+        if (count === 2 && !oneAway) oneAway = { oneAway: true, player: id, category: cat };
+      }
+    }
+    return oneAway;
+  }
+
+  _checkBroke() {
+    for (const id of this.order) {
+      if (this.players[id].cash <= 0) this._brokeMode.add(id);
+    }
+  }
+
+  getBrokeMode() {
+    return this._brokeMode;
   }
 }
 

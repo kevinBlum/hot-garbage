@@ -142,3 +142,48 @@ test('resolveAuction includes precisionMult in result', () => {
   const result = g.resolveAuction();
   assert.ok(typeof result.precisionMult === 'number');
 });
+
+test('checkSetRush: null when no player near a set', () => {
+  const g = makeGame();
+  assert.equal(g.checkSetRush(), null);
+});
+
+test('checkSetRush: oneAway when player has 2 of same category', () => {
+  const g = makeGame();
+  g.players['Alice'].artifacts = [
+    { id: '1', category: 'relics', value: 100 },
+    { id: '2', category: 'relics', value: 100 },
+  ];
+  const r = g.checkSetRush();
+  assert.ok(r?.oneAway);
+  assert.equal(r.player, 'Alice');
+  assert.equal(r.category, 'relics');
+});
+
+test('checkSetRush: triggered when player has 3 of same category', () => {
+  const g = makeGame();
+  g.players['Alice'].artifacts = [
+    { id: '1', category: 'relics', value: 100 },
+    { id: '2', category: 'relics', value: 100 },
+    { id: '3', category: 'relics', value: 100 },
+  ];
+  const r = g.checkSetRush();
+  assert.ok(r?.triggered);
+  assert.equal(r.winner, 'Alice');
+});
+
+test('_checkBroke: marks player at 0 cash', () => {
+  const g = makeGame();
+  g.players['Bob'].cash = 0;
+  g._checkBroke();
+  assert.ok(g.getBrokeMode().has('Bob'));
+  assert.ok(!g.getBrokeMode().has('Alice'));
+});
+
+test('_checkBroke: does not double-add already-broke player', () => {
+  const g = makeGame();
+  g.players['Bob'].cash = 0;
+  g._checkBroke();
+  g._checkBroke();
+  assert.equal(g.getBrokeMode().size, 1);
+});
