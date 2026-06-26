@@ -46,12 +46,9 @@ func _build_ui() -> void:
 	var artifact_card := _UITheme.make_card()
 	left_col.add_child(artifact_card)
 
-	var artifact_center := CenterContainer.new()
-	artifact_card.add_child(artifact_center)
-
 	var artifact_vbox := VBoxContainer.new()
 	artifact_vbox.add_theme_constant_override("separation", _UITheme.GAP)
-	artifact_center.add_child(artifact_vbox)
+	artifact_card.add_child(artifact_vbox)
 
 	_role_label = Label.new()
 	_role_label.text = "YOU ARE THE AUCTIONEER"
@@ -86,12 +83,9 @@ func _build_ui() -> void:
 	var action_card := _UITheme.make_card()
 	left_col.add_child(action_card)
 
-	var action_center := CenterContainer.new()
-	action_card.add_child(action_center)
-
 	var action_vbox := VBoxContainer.new()
 	action_vbox.add_theme_constant_override("separation", _UITheme.GAP)
-	action_center.add_child(action_vbox)
+	action_card.add_child(action_vbox)
 
 	_countdown_label = Label.new()
 	_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

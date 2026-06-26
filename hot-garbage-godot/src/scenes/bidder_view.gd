@@ -47,15 +47,9 @@ func _build_ui() -> void:
 	var artifact_card := _UITheme.make_card()
 	left_col.add_child(artifact_card)
 
-	var artifact_center := CenterContainer.new()
-	artifact_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	artifact_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	artifact_card.add_child(artifact_center)
-
 	var artifact_vbox := VBoxContainer.new()
-	artifact_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	artifact_vbox.add_theme_constant_override("separation", _UITheme.GAP)
-	artifact_center.add_child(artifact_vbox)
+	artifact_card.add_child(artifact_vbox)
 
 	_header_label = Label.new()
 	_header_label.text = "WAITING FOR AUCTION..."
@@ -84,12 +78,9 @@ func _build_ui() -> void:
 	var action_card := _UITheme.make_card()
 	left_col.add_child(action_card)
 
-	var action_center := CenterContainer.new()
-	action_card.add_child(action_center)
-
 	var action_vbox := VBoxContainer.new()
 	action_vbox.add_theme_constant_override("separation", _UITheme.GAP)
-	action_center.add_child(action_vbox)
+	action_card.add_child(action_vbox)
 
 	_phase_label = Label.new()
 	_phase_label.text = "BIDDING OPENS IN"
