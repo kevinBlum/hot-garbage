@@ -71,6 +71,12 @@ func _build_ui() -> void:
 		_UITheme.style_button(_start_btn)
 		vbox.add_child(_start_btn)
 
+	var leave_btn := Button.new()
+	leave_btn.text = "LEAVE LOBBY"
+	leave_btn.pressed.connect(_on_leave_pressed)
+	_UITheme.style_ghost_button(leave_btn)
+	vbox.add_child(leave_btn)
+
 func _refresh_player_list() -> void:
 	for child in _player_list.get_children():
 		child.queue_free()
@@ -89,3 +95,8 @@ func _on_start_pressed() -> void:
 	if _timer_spin != null:
 		duration = int(_timer_spin.value)
 	NetworkManager.start_game(duration)
+
+func _on_leave_pressed() -> void:
+	AudioManager.play_ui()
+	NetworkManager.disconnect_from_game()
+	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")

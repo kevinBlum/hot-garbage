@@ -3,6 +3,12 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'hot-garbage-server/**'
+      - 'infra/**'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/reusable-deploy.yml'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read

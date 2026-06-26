@@ -35,6 +35,7 @@ var _final_scores: Control = null
 
 var _local_player: CharacterBody3D = null
 var _is_auctioneer: bool = false
+var _leave_dialog_open: bool = false
 
 var _auction_item = null
 var _current_artifact: Dictionary = {}
@@ -253,7 +254,25 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+			_show_leave_dialog()
+
+func _show_leave_dialog() -> void:
+	if _leave_dialog_open:
+		return
+	_leave_dialog_open = true
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Leave Game"
+	dlg.dialog_text = "Leave game and return to main menu?"
+	dlg.confirmed.connect(func():
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		NetworkManager.disconnect_from_game()
+		get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn"))
+	dlg.canceled.connect(func():
+		_leave_dialog_open = false
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()
 
 static func _ensure_input_map() -> void:
 	const ACTIONS: Dictionary = {
