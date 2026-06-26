@@ -7,6 +7,11 @@ signal connection_failed()
 signal server_disconnected()
 signal error_received(code: String, message: String)
 signal bid_count_updated(received: int, total: int)
+signal role_assigned(role: Dictionary, objective: Dictionary)
+signal ability_result(data: Dictionary)
+signal one_away(player: String, category: String)
+signal broke_mode_started(player: String)
+signal set_rush_win(winner: String, category: String)
 signal player_moved(player_name: String, x: float, y: float, z: float, ry: float, anim: String)
 
 const SERVER_URL := "ws://hot-garbage-prod-alb-1121244951.us-east-1.elb.amazonaws.com"
@@ -165,3 +170,22 @@ func _dispatch(msg: Dictionary) -> void:
 				[msg.get("ranking", [])], true)
 		"bid_count":
 			bid_count_updated.emit(msg.get("received", 0), msg.get("total", 0))
+		"role_assigned":
+			role_assigned.emit(
+				msg.get("role", {}),
+				{
+					"itemId":   msg.get("objectiveItemId", ""),
+					"itemName": msg.get("objectiveItemName", ""),
+					"bonus":    msg.get("objectiveBonus", 0),
+				}
+			)
+		"ability_result":
+			ability_result.emit(msg)
+		"one_away":
+			one_away.emit(msg.get("player", ""), msg.get("category", ""))
+		"broke_mode":
+			broke_mode_started.emit(msg.get("player", ""))
+		"set_rush_win":
+			set_rush_win.emit(msg.get("winner", ""), msg.get("category", ""))
+			get_tree().get_root().propagate_call("on_set_rush_win",
+				[msg.get("winner", ""), msg.get("category", "")], true)

@@ -21,3 +21,6 @@ func send_start_game(pitch_duration: int) -> void:
 
 func send_delete_room() -> void:
 	NetworkManager._send({ "type": "delete_room" })
+
+func send_ability_activate(ability_type: String, target_name: String = "") -> void:
+	NetworkManager._send({ "type": "ability_activate", "abilityType": ability_type, "targetName": target_name })
