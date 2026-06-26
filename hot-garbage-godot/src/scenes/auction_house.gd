@@ -167,7 +167,7 @@ func _process(delta: float) -> void:
 		var secs: int = int(ceil(_bid_time_left))
 		_timer_label.text = "%d" % secs if secs > 0 else ""
 		if _hud:
-			_hud.start_bid_countdown(_bid_time_left)
+			_hud.set_countdown(_bid_time_left)
 
 func _setup_canvas() -> void:
 	_canvas = CanvasLayer.new()
@@ -313,6 +313,8 @@ func on_open_bidding(bid_timeout: float = 30.0) -> void:
 	_phase_sign_label.text = "BIDDING OPEN"
 	_bid_time_left = bid_timeout
 	_bid_counting = true
+	if _hud:
+		_hud.start_bid_countdown(bid_timeout)
 	if _auction_item:
 		_auction_item.set_interactable(false)
 		_auction_item.lock_to_pedestal()

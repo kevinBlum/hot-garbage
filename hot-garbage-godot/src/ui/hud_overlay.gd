@@ -6,6 +6,7 @@ var _cash_label: Label
 var _round_label: Label
 var _collection_vbox: VBoxContainer
 var _countdown_label: Label
+var _bid_timer_section: VBoxContainer
 
 func _ready() -> void:
 	add_to_group("hud_nodes")
@@ -69,17 +70,22 @@ func _ready() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(spacer)
 
+	# Wrap "BID TIMER" header + label in a single container so both hide together
+	_bid_timer_section = VBoxContainer.new()
+	_bid_timer_section.add_theme_constant_override("separation", 2)
+	_bid_timer_section.visible = false
+	vbox.add_child(_bid_timer_section)
+
 	var bid_section := Label.new()
 	bid_section.text = "BID TIMER"
 	_UITheme.style_section_label(bid_section)
-	vbox.add_child(bid_section)
+	_bid_timer_section.add_child(bid_section)
 
 	_countdown_label = Label.new()
 	_countdown_label.text = ""
 	_UITheme.style_label(_countdown_label, _UITheme.FS_ARTIFACT, _UITheme.GOLD)
 	_countdown_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_countdown_label.visible = false
-	vbox.add_child(_countdown_label)
+	_bid_timer_section.add_child(_countdown_label)
 
 	refresh()
 
@@ -88,10 +94,13 @@ func refresh() -> void:
 	var cash: int = GameServer.player_cash.get(own_id, 0)
 	_cash_label.text = "§%d" % cash
 
+	var artifacts: Array = GameServer.player_artifacts.get(own_id, [])
+	_rebuild_pips(artifacts)
+
+func _rebuild_pips(artifacts: Array) -> void:
 	for child in _collection_vbox.get_children():
 		child.queue_free()
 
-	var artifacts: Array = GameServer.player_artifacts.get(own_id, [])
 	var by_cat: Dictionary = {}
 	for a in artifacts:
 		var cat: String = a.get("category", "")
@@ -114,25 +123,15 @@ func update_round(round: int, total: int) -> void:
 	set_round(round, total)
 
 func update_collection(artifacts: Array) -> void:
-	for child in _collection_vbox.get_children():
-		child.queue_free()
-
-	var by_cat: Dictionary = {}
-	for a in artifacts:
-		var cat: String = a.get("category", "")
-		by_cat[cat] = by_cat.get(cat, 0) + 1
-
-	for cat in by_cat:
-		var row := Label.new()
-		row.text = "■ %s ×%d" % [cat.capitalize(), by_cat[cat]]
-		_UITheme.style_label(row, _UITheme.FS_LABEL, _UITheme.cat_color(cat))
-		row.autowrap_mode = TextServer.AUTOWRAP_OFF
-		_collection_vbox.add_child(row)
+	_rebuild_pips(artifacts)
 
 func start_bid_countdown(seconds: float) -> void:
-	_countdown_label.visible = true
+	_bid_timer_section.visible = true
+	_countdown_label.text = "%d" % int(ceil(seconds))
+
+func set_countdown(seconds: float) -> void:
 	_countdown_label.text = "%d" % int(ceil(seconds))
 
 func stop_bid_countdown() -> void:
-	_countdown_label.visible = false
+	_bid_timer_section.visible = false
 	_countdown_label.text = ""
