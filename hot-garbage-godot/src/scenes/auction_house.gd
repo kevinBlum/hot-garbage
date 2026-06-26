@@ -2,6 +2,10 @@ extends Node3D
 
 const _UITheme = preload("res://src/scenes/ui_theme.gd")
 const LocalPlayerScene = preload("res://src/characters/local_player.tscn")
+const RemotePlayerScene = preload("res://src/characters/remote_player.tscn")
+
+# player_name → RemotePlayer node
+var _remote_players: Dictionary = {}
 
 # In-world label refs — updated per phase
 var _phase_sign_label: Label3D
@@ -17,6 +21,7 @@ var _bid_counting: bool = false
 var _canvas: CanvasLayer
 
 var _local_player: CharacterBody3D = null
+var _is_auctioneer: bool = false
 
 func _ready() -> void:
 	_ensure_input_map()
@@ -190,8 +195,35 @@ static func _ensure_input_map() -> void:
 		InputMap.action_add_event(action, ev)
 
 func _connect_player_signals() -> void:
-	# TODO: filled in Task 5
-	pass
+	NetworkManager.player_registered.connect(_on_player_registered)
+	NetworkManager.player_disconnected.connect(_on_player_disconnected)
+	NetworkManager.player_moved.connect(_on_player_moved)
+	# Spawn RemotePlayers for players already in the room
+	for p_name in NetworkManager.player_names:
+		if p_name != NetworkManager.local_name:
+			_spawn_remote_player(p_name)
+
+func _on_player_registered(p_name: String) -> void:
+	if p_name != NetworkManager.local_name and not _remote_players.has(p_name):
+		_spawn_remote_player(p_name)
+
+func _on_player_disconnected(p_name: String) -> void:
+	if _remote_players.has(p_name):
+		_remote_players[p_name].queue_free()
+		_remote_players.erase(p_name)
+
+func _on_player_moved(p_name: String, x: float, y: float, z: float, ry: float, anim: String) -> void:
+	if not _remote_players.has(p_name):
+		_spawn_remote_player(p_name)
+	_remote_players[p_name].apply_move(x, y, z, ry, anim)
+
+func _spawn_remote_player(p_name: String) -> void:
+	var rp: Node3D = RemotePlayerScene.instantiate()
+	rp.init(p_name)
+	add_child(rp)
+	# Tentative start position
+	rp.position = Vector3(0, 0, 5)
+	_remote_players[p_name] = rp
 
 # --- Phase message stubs (filled in Tasks 6–11) ---
 
@@ -201,8 +233,12 @@ func on_auctioneer_reveal(_artifact: Dictionary, _pitch_duration: int) -> void:
 func on_start_pitch(_artifact: Dictionary, _pitch_duration: int, _round: int = 1, _total_rounds: int = 5) -> void:
 	_phase_sign_label.text = "PITCH PHASE"
 
-func on_auctioneer_name(_name: String) -> void:
-	pass
+func on_auctioneer_name(p_name: String) -> void:
+	_is_auctioneer = (NetworkManager.local_name == p_name)
+	if _local_player:
+		_local_player.set_crown_visible(_is_auctioneer)
+	for name in _remote_players:
+		_remote_players[name].set_crown_visible(name == p_name)
 
 func on_open_bidding() -> void:
 	_phase_sign_label.text = "BIDDING OPEN"
